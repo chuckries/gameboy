@@ -13,4 +13,9 @@ int main(int argc, const char* argv[])
 
     gameboy.Init();
     gameboy.LoadRom(argv[1]);
+
+    for (;;)
+    {
+        gameboy.DoFrame();
+    }
 }

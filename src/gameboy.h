@@ -1,6 +1,8 @@
 #pragma once
 
 class Cpu;
+class MemoryMap;
+class Cart;
 
 class Gameboy
 {
@@ -14,4 +16,6 @@ public:
     void DoFrame();
 private:
     std::unique_ptr<Cpu> _cpu;
+    std::shared_ptr<MemoryMap> _memoryMap;
+    std::shared_ptr<Cart> _cart;
 };

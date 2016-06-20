@@ -19,9 +19,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\cart.cpp" />
     <ClCompile Include="..\..\src\cpu.cpp" />
     <ClCompile Include="..\..\src\gameboy.cpp" />
     <ClCompile Include="..\..\src\main.cpp" />
+    <ClCompile Include="..\..\src\memory.cpp" />
     <ClCompile Include="..\..\src\stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
@@ -30,8 +32,10 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\cart.h" />
     <ClInclude Include="..\..\src\cpu.h" />
     <ClInclude Include="..\..\src\gameboy.h" />
+    <ClInclude Include="..\..\src\memory.h" />
     <ClInclude Include="..\..\src\stdafx.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
