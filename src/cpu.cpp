@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "cpu.h"
 #include "memory.h"
+#include "disassembler.h"
 
 const u8 Cpu::Z_FLAG = (1 << 7);
 const u8 Cpu::N_FLAG = (1 << 6);
@@ -9,6 +10,7 @@ const u8 Cpu::C_FLAG = (1 << 4);
 
 Cpu::Cpu(std::shared_ptr<MemoryMap> mem)
     : _mem(mem)
+    , _disassembler(std::make_unique<Disassembler>(mem))
     , _regA(_regs.AF.B.A)
     , _regB(_regs.BC.B.B)
     , _regC(_regs.BC.B.C)
@@ -75,8 +77,8 @@ void Cpu::Write16(u16 addr, u16 val)
 
 void Cpu::Step()
 {
+    Trace();
     Decode();
-
     CleanState();
 }
 
@@ -116,7 +118,9 @@ void Cpu::Decode()
                     {
                         switch (y)
                         {
-                        case 0: break; // NOP
+                        case 0:
+                            // NOP
+                            break;
                         case 1: __debugbreak();
                         case 2: __debugbreak();
                         case 3: __debugbreak();
@@ -155,7 +159,11 @@ void Cpu::Decode()
                                 case 1: __debugbreak();
                                 case 2: __debugbreak();
                                 case 3:
-                                    LDD();
+                                    /// LDD (HL),A
+                                    _pOpSrc8 = &_regA;
+                                    _pOpDst8 = &_indHL;
+                                    LD8();
+                                    _regs.HL.W--;
                                     break;
                                 default: __debugbreak();
                                 }
@@ -168,7 +176,13 @@ void Cpu::Decode()
                                 case 0: __debugbreak();
                                 case 1: __debugbreak();
                                 case 2: __debugbreak();
-                                case 3: __debugbreak();
+                                case 3:
+                                    /// LDD A,(HL)
+                                    _pOpSrc8 = &_indHL;
+                                    _pOpDst8 = &_regA;
+                                    LD8();
+                                    _regs.HL.W--;
+                                    break;
                                 default: __debugbreak();
                                 }
                             }
@@ -180,7 +194,7 @@ void Cpu::Decode()
                 case 3: __debugbreak();
                 case 4: __debugbreak();
                 case 5: __debugbreak();
-                case 6: 
+                case 6:
                     // LD r[y],n
                     _pOpSrc8 = &_imm8.FromPC();
                     _pOpDst8 = _decode_r[y];
@@ -212,20 +226,47 @@ void Cpu::Decode()
                     __debugbreak();
                     break;
                 case 2:
-                    __debugbreak();
+                    // JP cc[y],nn
+                    JP((*this.*_decode_cc[y])());
                     break;
                 case 3:
                     {
                         switch (y)
                         {
-                        case 0: JP(true); break;
-                        case 1: __debugbreak();
-                        case 2: __debugbreak();
-                        case 3: __debugbreak();
-                        case 4: __debugbreak();
-                        case 5: __debugbreak();
-                        case 6: __debugbreak();
-                        case 7: __debugbreak();
+                        case 0:
+                            // JP nn
+                            JP(true);
+                            break;
+                        case 1:
+                            // CB Prefix
+                            __debugbreak();
+                            break;
+                        case 2:
+                            // OUT(n),A
+                            // Not implemented in GB
+                            __debugbreak();
+                            break;
+                        case 3:
+                            // IN A,(n)
+                            // Not implemented in GB
+                            __debugbreak();
+                            break;
+                        case 4:
+                            // EX (SP),HL
+                            // Not implemented in GB
+                            __debugbreak();
+                            break;
+                        case 5:
+                            // EX DE,HL
+                            // Not implemented in GB
+                            __debugbreak();
+                            break;
+                        case 6:
+                            DI();
+                            break;
+                        case 7:
+                            EI();
+                            break;
                         default: __debugbreak();
                         }
                     }
@@ -381,7 +422,7 @@ bool Cpu::CondC()
     return CondFlag(C_FLAG);
 }
 
-///* 
+///*
 /// Actions
 ///*
 
@@ -390,15 +431,14 @@ void Cpu::LD8()
     _pOpDst8->Write(_pOpSrc8->Read());
 }
 
-void Cpu::LDD()
-{
-    _indHL.Write(_regs.AF.B.A);
-    _regs.HL.W--;
-}
-
 void Cpu::LD16()
 {
     _pOpDst16->Write(_pOpSrc16->Read());
+}
+
+void Cpu::LDHL()
+{
+    __debugbreak();
 }
 
 void Cpu::ADD()
@@ -454,3 +494,42 @@ void Cpu::JP(bool condition)
         _PC.W = newPC;
     }
 }
+
+void Cpu::EI()
+{
+    __debugbreak();
+}
+
+void Cpu::DI()
+{
+    __debugbreak();
+}
+
+#if defined(TRACE)
+void Cpu::Trace()
+{
+    Disassembler::Instruction instr;
+    _disassembler->Disassemble(_PC.W, instr);
+
+    printf("%04X %-14s %-18s A:%02X B:%02X C:%02X D:%02X E:%02X F:%02X H:%02X L:%02X AF:%04X BC:%04X DE:%04X HL:%04X SP:%04X\n",
+        _PC.W,
+        instr.GetFormattedCodeBytes().c_str(),
+        instr.GetDisassemblyString().c_str(),
+        _regs.AF.B.A,
+        _regs.BC.B.B,
+        _regs.BC.B.C,
+        _regs.DE.B.D,
+        _regs.DE.B.E,
+        _regs.AF.B.F,
+        _regs.HL.B.H,
+        _regs.HL.B.L,
+        _regs.AF.W,
+        _regs.BC.W,
+        _regs.DE.W,
+        _regs.HL.W,
+        _SP.W
+        );
+}
+#else
+void Cpu::Trace() {}
+#endif

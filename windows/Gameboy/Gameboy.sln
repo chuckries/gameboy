@@ -11,6 +11,8 @@ Global
 		Debug|x86 = Debug|x86
 		Release|x64 = Release|x64
 		Release|x86 = Release|x86
+		Trace|x64 = Trace|x64
+		Trace|x86 = Trace|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{72308641-FD4F-48E5-838D-ED4B86703BEF}.Debug|x64.ActiveCfg = Debug|x64
@@ -21,6 +23,10 @@ Global
 		{72308641-FD4F-48E5-838D-ED4B86703BEF}.Release|x64.Build.0 = Release|x64
 		{72308641-FD4F-48E5-838D-ED4B86703BEF}.Release|x86.ActiveCfg = Release|Win32
 		{72308641-FD4F-48E5-838D-ED4B86703BEF}.Release|x86.Build.0 = Release|Win32
+		{72308641-FD4F-48E5-838D-ED4B86703BEF}.Trace|x64.ActiveCfg = Trace|x64
+		{72308641-FD4F-48E5-838D-ED4B86703BEF}.Trace|x64.Build.0 = Trace|x64
+		{72308641-FD4F-48E5-838D-ED4B86703BEF}.Trace|x86.ActiveCfg = Trace|Win32
+		{72308641-FD4F-48E5-838D-ED4B86703BEF}.Trace|x86.Build.0 = Trace|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

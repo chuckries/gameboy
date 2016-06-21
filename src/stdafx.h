@@ -3,6 +3,8 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <sstream>
+#include <iomanip>
 
 typedef std::uint8_t u8;
 typedef std::uint16_t u16;

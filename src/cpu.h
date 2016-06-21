@@ -1,6 +1,7 @@
 #pragma once
 
 class MemoryMap;
+class Disassembler;
 
 class Cpu
 {
@@ -26,9 +27,11 @@ private:
 
     void CleanState();
     void Decode();
+    void Trace();
 
 private:
     std::shared_ptr<MemoryMap> _mem;
+    std::unique_ptr<Disassembler> _disassembler;
 
 private:
     // state machine
@@ -250,6 +253,12 @@ private:
             return *this;
         }
 
+        IndirectImmediate& ForLDH()
+        {
+            Immediate = 0xFF00 | (u16)_cpu.Read8BumpPC();
+            return *this;
+        }
+
         virtual u8 Read()
         {
             return _cpu.Read8(Immediate);
@@ -325,8 +334,8 @@ private:
     // Actions
 private:
     void LD8();
-    void LDD();
     void LD16();
+    void LDHL();
     void ADD();
     void ADC();
     void SUB();
@@ -336,4 +345,6 @@ private:
     void OR();
     void CP();
     void JP(bool cond);
+    void EI();
+    void DI();
 };

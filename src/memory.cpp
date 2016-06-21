@@ -37,6 +37,7 @@ u8 MemoryMap::Load(u16 addr)
     else if (addr < 0xFE00)
     {
         // RAM and Echo
+        // TODO: Half of this section is swappable for CGB
         addr &= 0x1FFF;
         __debugbreak();
     }
