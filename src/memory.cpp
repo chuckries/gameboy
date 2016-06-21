@@ -31,7 +31,7 @@ u8 MemoryMap::Load(u16 addr)
     }
     else if (addr < 0xC000)
     {
-        // Switchable RAM
+        // Cartridge RAM
         __debugbreak();
     }
     else if (addr < 0xFE00)
