@@ -15,6 +15,21 @@ void MemoryMap::Init()
 {
     _wram.resize(0x2000, 0);
     _hram.resize(0x80, 0);
+    _vram.resize(0x2000, 0);
+
+    _io_TIMA = 0;
+    _io_TMA = 0;
+    _io_TAC = 0;
+    _io_LCDC = 0x91;
+    _io_SCY = 0;
+    _io_SCX = 0;
+    _io_LYC = 0;
+    _io_BGP = 0xFC;
+    _io_OBP0 = 0xFF;
+    _io_OBP1 = 0xFF;
+    _io_WX = 0;
+    _io_WY = 0;
+    _io_IE = 0;
 }
 
 u8 MemoryMap::Load(u16 addr)
@@ -53,7 +68,49 @@ u8 MemoryMap::Load(u16 addr)
     else if (addr < 0xFF4C)
     {
         // I/O
-        __debugbreak();
+        switch (addr)
+        {
+        case 0xFF00:
+            return _io_P1 | 0b00001111;
+        case 0xFF01:
+            __debugbreak();
+            return _io_SB;
+        case 0xFF02:
+            __debugbreak();
+            return _io_SC;
+        case 0xFF04:
+            return _io_DIV;
+        case 0xFF05:
+            return _io_TIMA;
+        case 0xFF06:
+            return _io_TMA;
+        case 0xFF07:
+            return _io_TAC;
+        case 0xFF0F:
+            return _io_IF;
+        case 0xFF40:
+            return _io_LCDC;
+        case 0xFF41:
+            return _io_STAT;
+        case 0xFF42:
+            return _io_SCY;
+        case 0xFF43:
+            return _io_SCX;
+        case 0xFF44:
+            return _io_LY;
+        case 0xFF45:
+            return _io_LYC;
+        case 0xFF47:
+            return _io_BGP;
+        case 0xFF48:
+            return _io_OBP0;
+        case 0xFF49:
+            return _io_OBP1;
+        case 0xFF4A:
+            return _io_WY;
+        case 0xFF4B:
+            return _io_WX;
+        }
     }
     else if (addr < 0xFF80)
     {
@@ -68,8 +125,7 @@ u8 MemoryMap::Load(u16 addr)
     }
     else
     {
-        // Interrupt Enable Register
-        __debugbreak();
+        return _io_IE;
     }
 
     return 0;
@@ -111,7 +167,73 @@ void MemoryMap::Store(u16 addr, u8 val)
     else if (addr < 0xFF4C)
     {
         // I/O
-        __debugbreak();
+        switch (addr)
+        {
+        case 0xFF00:
+            _io_P1 = val & 0b00110000;
+            break;
+        case 0xFF01:
+            _io_SB = val;
+            break;
+        case 0xFF02:
+            _io_SC = val;
+            if (val  & (1 << 7)) __debugbreak();
+            break;
+        case 0xFF04:
+            _io_DIV = val;
+            __debugbreak();
+            break;
+        case 0xFF05:
+            __debugbreak();
+            _io_TIMA = val;
+            break;
+        case 0xFF06:
+            __debugbreak();
+            _io_TMA = val;
+            break;
+        case 0xFF07:
+            __debugbreak();
+            _io_TAC = val;
+            break;
+        case 0xFF0F:
+            _io_IF = val;
+            break;
+        case 0xFF40:
+            _io_LCDC = val;
+            break;
+        case 0xFF41:
+            _io_STAT = val;
+            break;
+        case 0xFF42:
+            _io_SCY = val;
+            break;
+        case 0xFF43:
+            _io_SCX = val;
+            break;
+        case 0xFF45:
+            _io_LYC = val;
+            break;
+        case 0xFF46:
+            _io_DMA = val;
+            __debugbreak();
+            break;
+        case 0xFF47:
+            _io_BGP = val;
+            break;
+        case 0xFF48:
+            _io_OBP0 = val;
+            break;
+        case 0xFF49:
+            _io_OBP1 = val;
+            break;
+        case 0xFF4A:
+            _io_WY = val;
+            break;
+        case 0xFF4B:
+            _io_WX = val;
+            break;
+        default: __debugbreak();
+        }
     }
     else if (addr < 0xFF80)
     {
@@ -127,6 +249,6 @@ void MemoryMap::Store(u16 addr, u8 val)
     else
     {
         // Interrupt Enable Register
-        __debugbreak();
+        _io_IE = val;
     }
 }

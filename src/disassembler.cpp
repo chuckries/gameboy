@@ -182,10 +182,11 @@ void Disassembler::Disassemble(u16 pc, Disassembler::Instruction& instr)
                             instr._codeBytes.push_back(Read8(_pc));
                             instr._ss << "LD ($FF00+" << Display8BumpPC() << "),A";
                             break;
-                        case 5:
+                        case 5: __debugbreak();
+                        case 6:
                             instr._codeBytes.push_back(Read8(_pc));
                             instr._ss << "LD A,($FF00+" << Display8BumpPC() << ")";
-                        case 6:
+                            break;
                         case 7:
                         default: __debugbreak();
                         }
@@ -220,6 +221,9 @@ void Disassembler::Disassemble(u16 pc, Disassembler::Instruction& instr)
                 case 4:
                 case 5:
                 case 6:
+                    instr._codeBytes.push_back(Read8(_pc));
+                    instr._ss << _decode_alu[y] << " " << Display8BumpPC();
+                    break;
                 case 7:
                 default: __debugbreak();
                 }

@@ -25,4 +25,9 @@ union Pair
         u8 L;
         u8 H;
     } B;
+
+    Pair()
+    {
+        W = 0;
+    }
 };

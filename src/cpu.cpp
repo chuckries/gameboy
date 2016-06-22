@@ -11,6 +11,9 @@ const u8 Cpu::C_FLAG = (1 << 4);
 Cpu::Cpu(std::shared_ptr<MemoryMap> mem)
     : _mem(mem)
     , _disassembler(std::make_unique<Disassembler>(mem))
+    , _interrupt_ime(false)
+    , _interrupt_ime_lag(false)
+    , _regs{ 0 }
     , _regA(_regs.AF.B.A)
     , _regB(_regs.BC.B.B)
     , _regC(_regs.BC.B.C)
@@ -82,6 +85,7 @@ void Cpu::Write16(u16 addr, u16 val)
 
 void Cpu::Step()
 {
+    DoInterrupt();
     Trace();
     Decode();
     CleanState();
@@ -93,6 +97,18 @@ void Cpu::CleanState()
     _pOpDst8 = nullptr;
     _pOpSrc16 = nullptr;
     _pOpDst16 = nullptr;
+}
+
+void Cpu::DoInterrupt()
+{
+    if (_interrupt_ime_lag)
+    {
+        __debugbreak();
+    }
+    else if (_interrupt_ime)
+    {
+        _interrupt_ime_lag = true;
+    }
 }
 
 void Cpu::Decode()
@@ -247,13 +263,13 @@ void Cpu::Decode()
                             _pOpDst8 = &_indImm.ForLDH();
                             LD8();
                             break;
-                        case 5:
-                            // LD A,($FF00+n),A
+                        case 5: __debugbreak();
+                        case 6:
+                            // LD A,($FF00+n)
                             _pOpSrc8 = &_indImm.ForLDH();
                             _pOpDst8 = &_regA;
                             LD8();
                             break;
-                        case 6: __debugbreak();
                         case 7: __debugbreak();
                         default: __debugbreak();
                         }
@@ -349,7 +365,9 @@ void Cpu::Decode()
                     __debugbreak();
                     break;
                 case 6:
-                    __debugbreak();
+                    // alu[y] n
+                    _pOpSrc8 = &_imm8.FromPC();
+                    (*this.*_decode_alu[y])();
                     break;
                 case 7:
                     __debugbreak();
@@ -418,56 +436,41 @@ void Cpu::ResetFlags()
     _regs.AF.B.F = 0;
 }
 
-void Cpu::SetFlag(u8 flag)
+void Cpu::SetFlag(u8 flag, bool set)
 {
-    _regs.AF.B.F |= flag;
-}
-
-void Cpu::ResetFlag(u8 flag)
-{
-    _regs.AF.B.F &= ~flag;
+    if (set)
+    {
+        _regs.AF.B.F |= flag;
+    }
+    else
+    {
+        _regs.AF.B.F &= ~flag;
+    }
 }
 
 void Cpu::SetZ(u8 val)
 {
-    if (val)
-    {
-        ResetFlag(Z_FLAG);
-    }
-    else
-    {
-        SetFlag(Z_FLAG);
-    }
+    SetFlag(Z_FLAG, val == 0);
 }
 
 void Cpu::SetN()
 {
-    SetFlag(N_FLAG);
+    SetFlag(N_FLAG, true);
 }
 
 void Cpu::ResetN()
 {
-    ResetFlag(N_FLAG);
+    SetFlag(N_FLAG, false);
 }
 
-void Cpu::SetH()
+void Cpu::SetH(bool set)
 {
-    SetFlag(H_FLAG);
+    SetFlag(H_FLAG, set);
 }
 
-void Cpu::ResetH()
+void Cpu::SetC(bool set)
 {
-    ResetFlag(H_FLAG);
-}
-
-void Cpu::SetC()
-{
-    SetFlag(C_FLAG);
-}
-
-void Cpu::ResetC()
-{
-    ResetFlag(C_FLAG);
+    SetFlag(C_FLAG, set);
 }
 
 bool Cpu::CondFlag(u8 flag)
@@ -526,7 +529,7 @@ void Cpu::ADC()
 
 void Cpu::SUB()
 {
-    __debugbreak();
+    _regs.AF.B.A = sub_help();
 }
 
 void Cpu::SBC()
@@ -553,7 +556,7 @@ void Cpu::OR()
 
 void Cpu::CP()
 {
-    __debugbreak();
+    sub_help();
 }
 
 void Cpu::INC8()
@@ -563,13 +566,10 @@ void Cpu::INC8()
     _pOpSrc8->Write(newVal);
     SetZ(newVal);
     ResetN();
-    ResetH();
-    val &= 0xF;
+    SetH(false);
+    val &= 0x0F;
     val++;
-    if (val & 0x10)
-    {
-        SetH();
-    }
+    SetH((val & 0xF0) != 0);
 }
 
 void Cpu::DEC8()
@@ -579,13 +579,10 @@ void Cpu::DEC8()
     _pOpSrc8->Write(newVal);
     SetZ(newVal);
     SetN();
-    ResetH();
-    val = (val & 0xF);
+    SetH(false);
+    val = (val & 0x0F);
     val--;
-    if (val & 0x10)
-    {
-        SetH();
-    }
+    SetH((val & 0xF0) != 0);
 }
 
 void Cpu::JP(bool condition)
@@ -613,12 +610,32 @@ void Cpu::RET(bool cond)
 
 void Cpu::EI()
 {
-    __debugbreak();
+    _interrupt_ime = true;
 }
 
 void Cpu::DI()
 {
-    __debugbreak();
+    _interrupt_ime = false;
+    _interrupt_ime_lag = false;
+}
+
+u8 Cpu::sub_help()
+{
+    Pair word;
+    u8 left = _regs.AF.B.A;
+    u8 right = _pOpSrc8->Read();
+
+    word.W = left - right;
+    SetZ(word.B.L);
+    SetN();
+    SetC(word.B.H != 0);
+
+    left &= 0x0F;
+    right &= 0x0F;
+    left -= right;
+    SetH((left & 0xF0) != 0);
+
+    return word.B.L;
 }
 
 #if defined(TRACE)

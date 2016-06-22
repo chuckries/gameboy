@@ -26,6 +26,7 @@ private:
     u16 Read16BumpPC();
 
     void CleanState();
+    void DoInterrupt();
     void Decode();
     void Trace();
 
@@ -34,11 +35,13 @@ private:
     std::unique_ptr<Disassembler> _disassembler;
 
 private:
-    // state machine
-    IOperand8* _pOpSrc8;
-    IOperand8* _pOpDst8;
-    IOperand16* _pOpSrc16;
-    IOperand16* _pOpDst16;
+    // interrupt stuff
+
+    // Interrup Master Enabl (and lag)
+    // Any pending interrupts will not occur until after the instruction afer the EI instruction
+    // _interrupt_ime_lag will be seet one instruction after _interrupt_ime is set
+    bool _interrupt_ime;
+    bool _interrupt_ime_lag;
 
     // Registers
     Pair _PC;
@@ -273,6 +276,11 @@ private:
         Cpu& _cpu;
     };
 
+    IOperand8* _pOpSrc8;
+    IOperand8* _pOpDst8;
+    IOperand16* _pOpSrc16;
+    IOperand16* _pOpDst16;
+
     Immediate8 _imm8;
     Immediate16 _imm16;
 
@@ -315,22 +323,19 @@ private:
     static const u8 H_FLAG;
     static const u8 C_FLAG;
     void ResetFlags();
-    void SetFlag(u8 flag);
-    void ResetFlag(u8 flag);
+    void SetFlag(u8 flag, bool set);
     void SetZ(u8 val);
     void SetN();
     void ResetN();
-    void SetH();
-    void ResetH();
-    void SetC();
-    void ResetC();
+    void SetH(bool set);
+    void SetC(bool set);
     bool CondFlag(u8 flag);
     bool CondNZ();
     bool CondZ();
     bool CondNC();
     bool CondC();
 
-    // Actions
+    // Operations
 private:
     void LD8();
     void LD16();
@@ -374,4 +379,7 @@ private:
     void RST(u8 val);
     void RET(bool cond);
     void RETI();
+
+    // helpers
+    u8 sub_help();
 };

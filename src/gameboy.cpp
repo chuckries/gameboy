@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "gameboy.h"
 #include "cpu.h"
+#include "video.h"
 #include "memory.h"
 #include "cart.h"
 
@@ -10,6 +11,7 @@ Gameboy::Gameboy()
     _memoryMap = std::make_shared<MemoryMap>(_cart);
 
     _cpu = std::make_unique<Cpu>(_memoryMap);
+    _video = std::make_unique<Video>(_memoryMap);
 }
 
 Gameboy::~Gameboy()
@@ -34,5 +36,6 @@ void Gameboy::DoFrame()
     for (;;)
     {
         _cpu->Step();
+        _video->Step();
     }
 }
