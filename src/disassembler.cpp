@@ -34,6 +34,7 @@ Disassembler::Disassembler(std::shared_ptr<MemoryMap> mem)
     , _decode_r{ "B", "C", "D", "E", "H", "L", "(HL)", "A" }
     , _decode_rp{ "BC", "DE", "HL", "SP" }
     , _decode_rp2{ "BC", "DE", "HL", "AF" }
+    , _decode_cc{ "NZ", "Z", "NC", "C" }
 {
 }
 
@@ -79,11 +80,14 @@ void Disassembler::Disassemble(u16 pc, Disassembler::Instruction& instr)
                             break;
                         case 1:
                         case 2:
-                        case 3:
+                        case 3: __debugbreak();
                         case 4:
                         case 5:
                         case 6:
                         case 7:
+                            instr._codeBytes.push_back(Read8(_pc));
+                            instr._ss << "JR " << _decode_cc[y - 4] << "," << DisplayBranchTarget();
+                            break;
                         default: __debugbreak();
                         }
                     }
@@ -140,8 +144,11 @@ void Disassembler::Disassemble(u16 pc, Disassembler::Instruction& instr)
                     }
                     break;
                 case 3:
-                case 4:
-                case 5: __debugbreak();
+                case 4: __debugbreak();
+                case 5:
+                    // DEC r[y]
+                    instr._ss << "DEC " << _decode_r[y];
+                    break;
                 case 6:
                     // LD r[y],n
                     instr._codeBytes.push_back(Read8(_pc));
@@ -162,6 +169,28 @@ void Disassembler::Disassemble(u16 pc, Disassembler::Instruction& instr)
                 switch (z)
                 {
                 case 0:
+                    {
+                        switch (y)
+                        {
+                        case 0: // intentional fallthrough
+                        case 1: // intentional fallthrough
+                        case 2: // intentional fallthrough
+                        case 3:
+                            instr._ss << "RET " << _decode_cc[y];
+                            break;
+                        case 4:
+                            instr._codeBytes.push_back(Read8(_pc));
+                            instr._ss << "LD ($FF00+" << Display8BumpPC() << "),A";
+                            break;
+                        case 5:
+                            instr._codeBytes.push_back(Read8(_pc));
+                            instr._ss << "LD A,($FF00+" << Display8BumpPC() << ")";
+                        case 6:
+                        case 7:
+                        default: __debugbreak();
+                        }
+                    }
+                    break;
                 case 1:
                 case 2: __debugbreak();
                 case 3:
@@ -177,9 +206,13 @@ void Disassembler::Disassemble(u16 pc, Disassembler::Instruction& instr)
                         case 2:
                         case 3:
                         case 4:
-                        case 5:
+                        case 5: __debugbreak();
                         case 6:
+                            instr._ss << "DI";
+                            break;
                         case 7:
+                            instr._ss << "EI";
+                            break;
                         default: __debugbreak();
                         }
                     }
@@ -245,5 +278,18 @@ std::string Disassembler::Display16BumpPC()
 {
     std::stringstream ss;
     ss << '$' << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << (int)Read16BumpPC();
+    return ss.str();
+}
+
+u16 Disassembler::GetBranchTarget()
+{
+    i8 disp = (i8)Read8BumpPC();
+    return (u16)((i32)_pc + (i32)disp);
+}
+
+std::string Disassembler::DisplayBranchTarget()
+{
+    std::stringstream ss;
+    ss << '$' << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << (int)GetBranchTarget();
     return ss.str();
 }

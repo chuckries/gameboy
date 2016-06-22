@@ -15,4 +15,11 @@ public:
 
 private:
     std::shared_ptr<Cart> _cart;
+
+    // Work RAM C000 - DFFF
+    // TODO: Half of this ram is swappable for CGB
+    std::vector<u8> _wram;
+
+    // High RAM FF80 - FFFE
+    std::vector<u8> _hram;
 };

@@ -47,6 +47,11 @@ Cpu::~Cpu()
 void Cpu::Init()
 {
     _PC.W = 0x100;
+    _regs.AF.W = 0x01B0;
+    _regs.BC.W = 0x0013;
+    _regs.DE.W = 0x00D8;
+    _regs.HL.W = 0x014D;
+    _SP.W = 0xFFFE;
 }
 
 u8 Cpu::Read8(u16 addr)
@@ -124,10 +129,12 @@ void Cpu::Decode()
                         case 1: __debugbreak();
                         case 2: __debugbreak();
                         case 3: __debugbreak();
-                        case 4:
-                        case 5:
-                        case 6:
-                        case 7: __debugbreak();
+                        case 4: // intentional fallthrough
+                        case 5: // intentional fallthrough
+                        case 6: // intentional fallthrough
+                        case 7:
+                            JR((*this.*_decode_cc[y - 4])());
+                            break;
                         default: __debugbreak();
                         }
                     }
@@ -193,7 +200,11 @@ void Cpu::Decode()
                     break;
                 case 3: __debugbreak();
                 case 4: __debugbreak();
-                case 5: __debugbreak();
+                case 5:
+                    // DEC r[y]
+                    _pOpSrc8 = _decode_r[y];
+                    DEC8();
+                    break;
                 case 6:
                     // LD r[y],n
                     _pOpSrc8 = &_imm8.FromPC();
@@ -220,13 +231,72 @@ void Cpu::Decode()
                 switch (z)
                 {
                 case 0:
-                    __debugbreak();
+                    {
+                        switch (y)
+                        {
+                        case 0: // intentional fallthrough
+                        case 1: // intentional fallthrough
+                        case 2: // intentional fallthrough
+                        case 3:
+                            // RET cc[y]
+                            RET((*this.*_decode_cc[y])());
+                            break;
+                        case 4:
+                            // LD ($FF00+n),A
+                            _pOpSrc8 = &_regA;
+                            _pOpDst8 = &_indImm.ForLDH();
+                            LD8();
+                            break;
+                        case 5:
+                            // LD A,($FF00+n),A
+                            _pOpSrc8 = &_indImm.ForLDH();
+                            _pOpDst8 = &_regA;
+                            LD8();
+                            break;
+                        case 6: __debugbreak();
+                        case 7: __debugbreak();
+                        default: __debugbreak();
+                        }
+                    }
                     break;
                 case 1:
-                    __debugbreak();
+                    {
+                        switch (q)
+                        {
+                        case 0: __debugbreak();
+                            case 1:
+                            {
+                                switch (p)
+                                {
+                                case 0:
+                                    RET(true);
+                                    break;
+                                case 1:
+                                    // EXX
+                                    // Not implemented in GB
+                                    __debugbreak();
+                                case 2:
+                                    // JP HL
+                                    _pOpSrc16 = &_regHL;
+                                    JP(true);
+                                    break;
+                                case 3:
+                                    // LD SP,HL
+                                    _pOpSrc16 = &_regHL;
+                                    _pOpDst16 = &_regSP;
+                                    LD16();
+                                    break;
+                                default: __debugbreak();
+                                }
+                            }
+                            break;
+                        default: __debugbreak();
+                        }
+                    }
                     break;
                 case 2:
                     // JP cc[y],nn
+                    _pOpSrc16 = &_imm16.FromPC();
                     JP((*this.*_decode_cc[y])());
                     break;
                 case 3:
@@ -235,6 +305,7 @@ void Cpu::Decode()
                         {
                         case 0:
                             // JP nn
+                            _pOpSrc16 = &_imm16.FromPC();
                             JP(true);
                             break;
                         case 1:
@@ -357,14 +428,16 @@ void Cpu::ResetFlag(u8 flag)
     _regs.AF.B.F &= ~flag;
 }
 
-void Cpu::SetZ()
+void Cpu::SetZ(u8 val)
 {
-    SetFlag(Z_FLAG);
-}
-
-void Cpu::ResetZ()
-{
-    ResetFlag(Z_FLAG);
+    if (val)
+    {
+        ResetFlag(Z_FLAG);
+    }
+    else
+    {
+        SetFlag(Z_FLAG);
+    }
 }
 
 void Cpu::SetN()
@@ -399,7 +472,7 @@ void Cpu::ResetC()
 
 bool Cpu::CondFlag(u8 flag)
 {
-    return (_regs.AF.B.F | flag) != 0;
+    return (_regs.AF.B.F & flag) != 0;
 }
 
 bool Cpu::CondNZ()
@@ -470,10 +543,7 @@ void Cpu::XOR()
 {
     _regs.AF.B.A ^= _pOpSrc8->Read();
     ResetFlags();
-    if (!_regs.AF.B.A)
-    {
-        SetZ();
-    }
+    SetZ(_regs.AF.B.A);
 }
 
 void Cpu::OR()
@@ -486,13 +556,59 @@ void Cpu::CP()
     __debugbreak();
 }
 
+void Cpu::INC8()
+{
+    u8 val = _pOpSrc8->Read();
+    u8 newVal = val + 1;
+    _pOpSrc8->Write(newVal);
+    SetZ(newVal);
+    ResetN();
+    ResetH();
+    val &= 0xF;
+    val++;
+    if (val & 0x10)
+    {
+        SetH();
+    }
+}
+
+void Cpu::DEC8()
+{
+    u8 val = _pOpSrc8->Read();
+    u8 newVal = val - 1;
+    _pOpSrc8->Write(newVal);
+    SetZ(newVal);
+    SetN();
+    ResetH();
+    val = (val & 0xF);
+    val--;
+    if (val & 0x10)
+    {
+        SetH();
+    }
+}
+
 void Cpu::JP(bool condition)
 {
-    u16 newPC = Read16BumpPC();
+    u16 newPC = _pOpSrc16->Read();
     if (condition)
     {
         _PC.W = newPC;
     }
+}
+
+void Cpu::JR(bool condition)
+{
+    i8 disp = (i8)Read8BumpPC();
+    if (condition)
+    {
+        _PC.W += (i16)disp;
+    }
+}
+
+void Cpu::RET(bool cond)
+{
+    __debugbreak();
 }
 
 void Cpu::EI()

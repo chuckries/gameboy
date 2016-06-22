@@ -36,6 +36,9 @@ private:
     std::string Display8BumpPC();
     std::string Display16BumpPC();
 
+    u16 GetBranchTarget();
+    std::string DisplayBranchTarget();
+
 private:
     std::shared_ptr<MemoryMap> _mem;
     u16 _pc;
@@ -45,4 +48,5 @@ private:
     std::vector<std::string> _decode_r;
     std::vector<std::string> _decode_rp;
     std::vector<std::string> _decode_rp2;
+    std::vector<std::string> _decode_cc;
 };
