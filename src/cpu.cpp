@@ -36,7 +36,7 @@ Cpu::Cpu(std::shared_ptr<MemoryMap> mem)
     , _decode_r{ &_regB, &_regC, &_regD, &_regE, &_regH, &_regL, &_indHL, &_regA }
     , _decode_rp{ &_regBC, &_regDE, &_regHL, &_regSP }
     , _decode_rp2{ &_regBC, &_regDE, &_regHL, &_regAF }
-    , _decode_alu{ &Cpu::ADD, &Cpu::ADC, &Cpu::SUB, &Cpu::SBC, &Cpu::AND, &Cpu::XOR, &Cpu::OR, &Cpu::CP }
+    , _decode_alu{ &Cpu::ADD8, &Cpu::ADC, &Cpu::SUB, &Cpu::SBC, &Cpu::AND, &Cpu::XOR, &Cpu::OR, &Cpu::CP }
     , _decode_cc{ &Cpu::CondNZ, &Cpu::CondZ, &Cpu::CondNC, &Cpu::CondC }
 {
 
@@ -129,290 +129,486 @@ void Cpu::Decode()
 
     if (!prefix)
     {
-        switch (x)
+        switch (op)
         {
-        case 0:
-            {
-                switch (z)
-                {
-                case 0:
-                    {
-                        switch (y)
-                        {
-                        case 0:
-                            // NOP
-                            break;
-                        case 1: __debugbreak();
-                        case 2: __debugbreak();
-                        case 3: __debugbreak();
-                        case 4: // intentional fallthrough
-                        case 5: // intentional fallthrough
-                        case 6: // intentional fallthrough
-                        case 7:
-                            JR((*this.*_decode_cc[y - 4])());
-                            break;
-                        default: __debugbreak();
-                        }
-                    }
-                    break;
-                case 1:
-                    {
-                        switch (q)
-                        {
-                        case 0:
-                            // LD rp[p],nn
-                            _pOpSrc16 = &_imm16.FromPC();
-                            _pOpDst16 = _decode_rp[p];
-                            LD16();
-                            break;
-                        case 1: __debugbreak();
-                        default: __debugbreak();
-                        }
-                    }
-                    break;
-                case 2:
-                    {
-                        switch (q)
-                        {
-                        case 0:
-                            {
-                                switch (p)
-                                {
-                                case 0: __debugbreak();
-                                case 1: __debugbreak();
-                                case 2: __debugbreak();
-                                case 3:
-                                    /// LDD (HL),A
-                                    _pOpSrc8 = &_regA;
-                                    _pOpDst8 = &_indHL;
-                                    LD8();
-                                    _regs.HL.W--;
-                                    break;
-                                default: __debugbreak();
-                                }
-                            }
-                            break;
-                        case 1:
-                            {
-                                switch (p)
-                                {
-                                case 0: __debugbreak();
-                                case 1: __debugbreak();
-                                case 2: __debugbreak();
-                                case 3:
-                                    /// LDD A,(HL)
-                                    _pOpSrc8 = &_indHL;
-                                    _pOpDst8 = &_regA;
-                                    LD8();
-                                    _regs.HL.W--;
-                                    break;
-                                default: __debugbreak();
-                                }
-                            }
-                            break;
-                        default: __debugbreak();
-                        }
-                    }
-                    break;
-                case 3: __debugbreak();
-                case 4: __debugbreak();
-                case 5:
-                    // DEC r[y]
-                    _pOpSrc8 = _decode_r[y];
-                    DEC8();
-                    break;
-                case 6:
-                    // LD r[y],n
-                    _pOpSrc8 = &_imm8.FromPC();
-                    _pOpDst8 = _decode_r[y];
-                    LD8();
-                    break;
-                case 7: __debugbreak();
-                default: __debugbreak();
-                }
-            }
+        case 0x00:
+            // NOP
             break;
-        case 1:
-            {
-                __debugbreak();
-            }
+        case 0x010:
+            // DJNZ
+            __debugbreak();
             break;
-        case 2:
+        case 0x18:
+            // JR d
+            JR(true);
+            break;
+        case 0x20:
+        case 0x28:
+        case 0x30:
+        case 0x38:
+            // JR cc[y-4],d
+            JR((*this.*_decode_cc[y - 4])());
+            break;
+        case 0x01:
+        case 0x11:
+        case 0x21:
+        case 0x31:
+            // LD rp[p],nn
+            _pOpSrc16 = &_imm16.FromPC();
+            _pOpDst16 = _decode_rp[p];
+            LD16();
+            break;
+        case 0x09:
+        case 0x19:
+        case 0x29:
+        case 0x39:
+            // ADD HL,rp[p]
+            _pOpSrc16 = _decode_rp[p];
+            _pOpDst16 = &_regHL;
+            ADD16();
+            break;
+        case 0x02:
+            // LD (BC),A
+            _pOpSrc8 = &_regA;
+            _pOpDst8 = &_indBC;
+            LD8();
+            break;
+        case 0x12:
+            // LD (DE),A
+            _pOpSrc8 = &_regA;
+            _pOpDst8 = &_indDE;
+            LD8();
+            break;
+        case 0x22:
+            // LDI (HL),A
+            _pOpSrc8 = &_regA;
+            _pOpDst8 = &_indHL;
+            LD8();
+            _regs.HL.W++;
+            break;
+        case 0x32:
+            /// LDD (HL),A
+            _pOpSrc8 = &_regA;
+            _pOpDst8 = &_indHL;
+            LD8();
+            _regs.HL.W--;
+            break;
+        case 0x0A:
+            // LD A,(BC)
+            _pOpSrc8 = &_indBC;
+            _pOpDst8 = &_regA;
+            LD8();
+            break;
+        case 0x1A:
+            // LD A,(DE)
+            _pOpSrc8 = &_indDE;
+            _pOpDst8 = &_regA;
+            LD8();
+            break;
+        case 0x2A:
+            // LDI A,(HL)
+            _pOpSrc8 = &_indHL;
+            _pOpSrc8 = &_regA;
+            LD8();
+            _regs.HL.W++;
+            break;
+        case 0x3A:
+            // LDD A,(HL)
+            _pOpSrc8 = &_indHL;
+            _pOpDst8 = &_regA;
+            LD8();
+            _regs.HL.W--;
+            break;
+        case 0x03:
+        case 0x13:
+        case 0x23:
+        case 0x33:
+            // INC rp[p]
+            _pOpSrc16 = _decode_rp[p];
+            INC16();
+            break;
+        case 0x0B:
+        case 0x1B:
+        case 0x2B:
+        case 0x3B:
+            // DEC rp[p]
+            _pOpSrc16 = _decode_rp[p];
+            DEC16();
+            break;
+        case 0x04:
+        case 0x0C:
+        case 0x14:
+        case 0x1C:
+        case 0x24:
+        case 0x2C:
+        case 0x34:
+        case 0x3C:
+            // INC r[y]
+            _pOpSrc8 = _decode_r[y];
+            INC8();
+            break;
+        case 0x05:
+        case 0x0D:
+        case 0x15:
+        case 0x1D:
+        case 0x25:
+        case 0x2D:
+        case 0x35:
+        case 0x3D:
+            // DEC r[y]
+            _pOpSrc8 = _decode_r[y];
+            DEC8();
+            break;
+        case 0x06:
+        case 0x0E:
+        case 0x16:
+        case 0x1E:
+        case 0x26:
+        case 0x2E:
+        case 0x36:
+        case 0x3E:
+            // LD r[y],n
+            _pOpSrc8 = &_imm8.FromPC();
+            _pOpDst8 = _decode_r[y];
+            LD8();
+            break;
+        case 0x07:
+            // RLCA
+            __debugbreak();
+            break;
+        case 0xF:
+            // RRCA
+            __debugbreak();
+            break;
+        case 0x17:
+            // RLA
+            __debugbreak();
+            break;
+        case 0x1F:
+            // RRA
+            __debugbreak();
+            break;
+        case 0x27:
+            // DAA
+            __debugbreak();
+            break;
+        case 0x2F:
+            // CPL
+            __debugbreak();
+            break;
+        case 0x37:
+            // SCF
+            SetC(true);
+            ResetN();
+            ResetH();
+            break;
+        case 0x3F:
+            // CCF
+            SetC(false);
+            ResetN();
+            ResetH();
+            break;
+        case 0x40:
+        case 0x41:
+        case 0x42:
+        case 0x43:
+        case 0x44:
+        case 0x45:
+        case 0x46:
+        case 0x47:
+        case 0x48:
+        case 0x49:
+        case 0x4A:
+        case 0x4B:
+        case 0x4C:
+        case 0x4D:
+        case 0x4E:
+        case 0x4F:
+        case 0x50:
+        case 0x51:
+        case 0x52:
+        case 0x53:
+        case 0x54:
+        case 0x55:
+        case 0x56:
+        case 0x57:
+        case 0x58:
+        case 0x59:
+        case 0x5A:
+        case 0x5B:
+        case 0x5C:
+        case 0x5D:
+        case 0x5E:
+        case 0x5F:
+        case 0x60:
+        case 0x61:
+        case 0x62:
+        case 0x63:
+        case 0x64:
+        case 0x65:
+        case 0x66:
+        case 0x67:
+        case 0x68:
+        case 0x69:
+        case 0x6A:
+        case 0x6B:
+        case 0x6C:
+        case 0x6D:
+        case 0x6E:
+        case 0x6F:
+        case 0x70:
+        case 0x71:
+        case 0x72:
+        case 0x73:
+        case 0x74:
+        case 0x75:
+        // case 0x76: HALT
+        case 0x77:
+        case 0x78:
+        case 0x79:
+        case 0x7A:
+        case 0x7B:
+        case 0x7C:
+        case 0x7D:
+        case 0x7E:
+        case 0x7F:
+            // LD r[y],r[z]
+            _pOpSrc8 = _decode_r[z];
+            _pOpDst8 = _decode_r[y];
+            LD8();
+            break;
+        case 0x76:
+            // HALT
+            __debugbreak();
+            break;
+        case 0x80:
+        case 0x81:
+        case 0x82:
+        case 0x83:
+        case 0x84:
+        case 0x85:
+        case 0x86:
+        case 0x87:
+        case 0x88:
+        case 0x89:
+        case 0x8A:
+        case 0x8B:
+        case 0x8C:
+        case 0x8D:
+        case 0x8E:
+        case 0x8F:
+        case 0x90:
+        case 0x91:
+        case 0x92:
+        case 0x93:
+        case 0x94:
+        case 0x95:
+        case 0x96:
+        case 0x97:
+        case 0x98:
+        case 0x99:
+        case 0x9A:
+        case 0x9B:
+        case 0x9C:
+        case 0x9D:
+        case 0x9E:
+        case 0x9F:
+        case 0xA0:
+        case 0xA1:
+        case 0xA2:
+        case 0xA3:
+        case 0xA4:
+        case 0xA5:
+        case 0xA6:
+        case 0xA7:
+        case 0xA8:
+        case 0xA9:
+        case 0xAA:
+        case 0xAB:
+        case 0xAC:
+        case 0xAD:
+        case 0xAE:
+        case 0xAF:
+        case 0xB0:
+        case 0xB1:
+        case 0xB2:
+        case 0xB3:
+        case 0xB4:
+        case 0xB5:
+        case 0xB6:
+        case 0xB7:
+        case 0xB8:
+        case 0xB9:
+        case 0xBA:
+        case 0xBB:
+        case 0xBC:
+        case 0xBD:
+        case 0xBE:
+        case 0xBF:
             // alu[y] r[z]
             _pOpSrc8 = _decode_r[z];
             (*this.*_decode_alu[y])();
             break;
-        case 3:
-            {
-                switch (z)
-                {
-                case 0:
-                    {
-                        switch (y)
-                        {
-                        case 0: // intentional fallthrough
-                        case 1: // intentional fallthrough
-                        case 2: // intentional fallthrough
-                        case 3:
-                            // RET cc[y]
-                            RET((*this.*_decode_cc[y])());
-                            break;
-                        case 4:
-                            // LD ($FF00+n),A
-                            _pOpSrc8 = &_regA;
-                            _pOpDst8 = &_indImm.ForLDH();
-                            LD8();
-                            break;
-                        case 5: __debugbreak();
-                        case 6:
-                            // LD A,($FF00+n)
-                            _pOpSrc8 = &_indImm.ForLDH();
-                            _pOpDst8 = &_regA;
-                            LD8();
-                            break;
-                        case 7: __debugbreak();
-                        default: __debugbreak();
-                        }
-                    }
-                    break;
-                case 1:
-                    {
-                        switch (q)
-                        {
-                        case 0: __debugbreak();
-                            case 1:
-                            {
-                                switch (p)
-                                {
-                                case 0:
-                                    RET(true);
-                                    break;
-                                case 1:
-                                    // EXX
-                                    // Not implemented in GB
-                                    __debugbreak();
-                                case 2:
-                                    // JP HL
-                                    _pOpSrc16 = &_regHL;
-                                    JP(true);
-                                    break;
-                                case 3:
-                                    // LD SP,HL
-                                    _pOpSrc16 = &_regHL;
-                                    _pOpDst16 = &_regSP;
-                                    LD16();
-                                    break;
-                                default: __debugbreak();
-                                }
-                            }
-                            break;
-                        default: __debugbreak();
-                        }
-                    }
-                    break;
-                case 2:
-                    // JP cc[y],nn
-                    _pOpSrc16 = &_imm16.FromPC();
-                    JP((*this.*_decode_cc[y])());
-                    break;
-                case 3:
-                    {
-                        switch (y)
-                        {
-                        case 0:
-                            // JP nn
-                            _pOpSrc16 = &_imm16.FromPC();
-                            JP(true);
-                            break;
-                        case 1:
-                            // CB Prefix
-                            __debugbreak();
-                            break;
-                        case 2:
-                            // OUT(n),A
-                            // Not implemented in GB
-                            __debugbreak();
-                            break;
-                        case 3:
-                            // IN A,(n)
-                            // Not implemented in GB
-                            __debugbreak();
-                            break;
-                        case 4:
-                            // EX (SP),HL
-                            // Not implemented in GB
-                            __debugbreak();
-                            break;
-                        case 5:
-                            // EX DE,HL
-                            // Not implemented in GB
-                            __debugbreak();
-                            break;
-                        case 6:
-                            DI();
-                            break;
-                        case 7:
-                            EI();
-                            break;
-                        default: __debugbreak();
-                        }
-                    }
-                    break;
-                case 4:
-                    __debugbreak();
-                    break;
-                case 5:
-                    __debugbreak();
-                    break;
-                case 6:
-                    // alu[y] n
-                    _pOpSrc8 = &_imm8.FromPC();
-                    (*this.*_decode_alu[y])();
-                    break;
-                case 7:
-                    __debugbreak();
-                    break;
-                default:
-                    __debugbreak();
-                    break;
-                }
-            }
+        case 0xC0:
+        case 0xC8:
+        case 0xD0:
+        case 0xD8:
+            // RET cc[y]
+            RET((*this.*_decode_cc[y])());
+            break;
+        case 0xE0:
+            // LD ($FF00+n),A
+            _pOpSrc8 = &_regA;
+            _pOpDst8 = &_indImm.ForLDH();
+            LD8();
+            break;
+        case 0xE8:
+            // ADD SP,n
+            __debugbreak();
+            break;
+        case 0xF0:
+            // LD A,($FF00+n)
+            _pOpSrc8 = &_indImm.ForLDH();
+            _pOpDst8 = &_regA;
+            LD8();
+            break;
+        case 0xF8:
+            // LDHL
+            __debugbreak();
+            break;
+        case 0xC1:
+        case 0xD1:
+        case 0xE1:
+        case 0xF1:
+            // POP rp2[p]
+            __debugbreak();
+            break;
+        case 0xC9:
+            // RET
+            RET(true);
+            break;
+        case 0xD9:
+            // RETI
+            RETI();
+            break;
+        case 0xE9:
+            // JP HL
+            __debugbreak();
+            break;
+        case 0xF9:
+            // LD SP,HL
+            _pOpSrc16 = &_regHL;
+            _pOpDst16 = &_regSP;
+            LD16();
+            break;
+        case 0xC2:
+        case 0xCA:
+        case 0xD2:
+        case 0xDA:
+            // JP cc[y],nn
+            _pOpSrc16 = &_imm16.FromPC();
+            JP((*this.*_decode_cc[y])());
+            break;
+        case 0xE2:
+            // LD ($FF00+C),A
+            __debugbreak();
+            break;
+        case 0xEA:
+            // LD (nn),A
+            __debugbreak();
+            break;
+        case 0xF2:
+            // LD A,($FF00+C)
+            __debugbreak();
+            break;
+        case 0xFA:
+            // LD A,(nn)
+            __debugbreak();
+            break;
+        case 0xC3:
+            // JP nn
+            _pOpSrc16 = &_imm16.FromPC();
+            JP(true);
+            break;
+        case 0xF3:
+            // DI
+            DI();
+            break;
+        case 0xFB:
+            // EI
+            EI();
+            break;
+        case 0xC4:
+        case 0xCC:
+        case 0xD4:
+        case 0xDC:
+            // CALL cc[y],nn
+            __debugbreak();
+            break;
+        case 0xC5:
+        case 0xD5:
+        case 0xE5:
+        case 0xF5:
+            // PUSH rp2[p]
+            __debugbreak();
+            break;
+        case 0xCD:
+            // CALL nn
+            __debugbreak();
+            break;
+        case 0xC6:
+        case 0xCE:
+        case 0xD6:
+        case 0xDE:
+        case 0xE6:
+        case 0xEE:
+        case 0xF6:
+        case 0xFE:
+            // alu[y] n
+            _pOpSrc8 = &_imm8.FromPC();
+            (*this.*_decode_alu[y])();
+            break;
+        case 0xC7:
+        case 0xCF:
+        case 0xD7:
+        case 0xDF:
+        case 0xE7:
+        case 0xEF:
+        case 0xF7:
+        case 0xFF:
+            // RST y*8
+            __debugbreak();
             break;
         default:
-            {
-                __debugbreak();
-            }
+            __debugbreak();
             break;
         }
     }
     else
     {
-        switch (x)
+        switch (op & 0xC0)
         {
-            case 0:
-            {
-                __debugbreak();
-            }
+        case 0x00:
+            // rot[y] r[z]
+            __debugbreak();
             break;
-        case 1:
-            {
-                __debugbreak();
-            }
+        case 0x40:
+            // BIT y,r[z]
+            _pOpSrc8 = _decode_r[z];
+            BIT(y);
             break;
-        case 2:
-            {
-                __debugbreak();
-            }
+        case 0x80:
+            // RES y,r[z]
+            _pOpSrc8 = _decode_r[z];
+            RES(y);
             break;
-        case 3:
-            {
-                __debugbreak();
-            }
+        case 0xC0:
+            // SET y,r[z]
+            _pOpSrc8 = _decode_r[z];
+            SET(y);
             break;
         default:
-            {
-                __debugbreak();
-            }
+            __debugbreak();
             break;
         }
     }
@@ -468,6 +664,11 @@ void Cpu::SetH(bool set)
     SetFlag(H_FLAG, set);
 }
 
+void Cpu::ResetH()
+{
+    SetH(false);
+}
+
 void Cpu::SetC(bool set)
 {
     SetFlag(C_FLAG, set);
@@ -499,7 +700,7 @@ bool Cpu::CondC()
 }
 
 ///*
-/// Actions
+/// Operations
 ///*
 
 void Cpu::LD8()
@@ -517,7 +718,12 @@ void Cpu::LDHL()
     __debugbreak();
 }
 
-void Cpu::ADD()
+void Cpu::ADD8()
+{
+    __debugbreak();
+}
+
+void Cpu::ADD16()
 {
     __debugbreak();
 }
@@ -572,6 +778,11 @@ void Cpu::INC8()
     SetH((val & 0xF0) != 0);
 }
 
+void Cpu::INC16()
+{
+    __debugbreak();
+}
+
 void Cpu::DEC8()
 {
     u8 val = _pOpSrc8->Read();
@@ -583,6 +794,117 @@ void Cpu::DEC8()
     val = (val & 0x0F);
     val--;
     SetH((val & 0xF0) != 0);
+}
+
+void Cpu::DEC16()
+{
+    __debugbreak();
+}
+
+void Cpu::SWAP()
+{
+    __debugbreak();
+}
+
+void Cpu::DAA()
+{
+    __debugbreak();
+}
+
+void Cpu::CPL()
+{
+    __debugbreak();
+}
+
+void Cpu::HALT()
+{
+    __debugbreak();
+}
+
+void Cpu::STOP()
+{
+    __debugbreak();
+}
+
+void Cpu::DI()
+{
+    _interrupt_ime = false;
+    _interrupt_ime_lag = false;
+}
+
+void Cpu::EI()
+{
+    _interrupt_ime = true;
+}
+
+void Cpu::RLCA()
+{
+    __debugbreak();
+}
+
+void Cpu::RLA()
+{
+    __debugbreak();
+}
+
+void Cpu::RRCA()
+{
+    __debugbreak();
+}
+
+void Cpu::RRA()
+{
+    __debugbreak();
+}
+
+void Cpu::RLC()
+{
+    __debugbreak();
+}
+
+void Cpu::RL()
+{
+    __debugbreak();
+}
+
+void Cpu::RRC()
+{
+    __debugbreak();
+}
+
+void Cpu::RR()
+{
+    __debugbreak();
+}
+
+void Cpu::SLA()
+{
+    __debugbreak();
+}
+
+void Cpu::SRA()
+{
+    __debugbreak();
+}
+
+void Cpu::SRL()
+{
+    __debugbreak();
+}
+
+void Cpu::BIT(u8 val)
+{
+    __debugbreak();
+}
+
+void Cpu::SET(u8 val)
+{
+    __debugbreak();
+}
+
+void Cpu::RES(u8 val)
+{
+    __debugbreak();
 }
 
 void Cpu::JP(bool condition)
@@ -603,20 +925,24 @@ void Cpu::JR(bool condition)
     }
 }
 
+void Cpu::CALL(bool condition)
+{
+    __debugbreak();
+}
+
+void Cpu::RST(u8 val)
+{
+    __debugbreak();
+}
+
 void Cpu::RET(bool cond)
 {
     __debugbreak();
 }
 
-void Cpu::EI()
+void Cpu::RETI()
 {
-    _interrupt_ime = true;
-}
-
-void Cpu::DI()
-{
-    _interrupt_ime = false;
-    _interrupt_ime_lag = false;
+    __debugbreak();
 }
 
 u8 Cpu::sub_help()

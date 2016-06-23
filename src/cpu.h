@@ -328,6 +328,7 @@ private:
     void SetN();
     void ResetN();
     void SetH(bool set);
+    void ResetH();
     void SetC(bool set);
     bool CondFlag(u8 flag);
     bool CondNZ();
@@ -340,7 +341,8 @@ private:
     void LD8();
     void LD16();
     void LDHL();
-    void ADD();
+    void ADD8();
+    void ADD16();
     void ADC();
     void SUB();
     void SBC();
@@ -349,12 +351,12 @@ private:
     void OR();
     void CP();
     void INC8();
+    void INC16();
     void DEC8();
+    void DEC16();
     void SWAP();
     void DAA();
     void CPL();
-    void CCF();
-    void SCF();
     void HALT();
     void STOP();
     void DI();
