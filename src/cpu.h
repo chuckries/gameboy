@@ -6,9 +6,6 @@ class Disassembler;
 
 class Cpu
 {
-private:
-    class IOperand8;
-    class IOperand16;
 public:
     Cpu(const Gameboy& gameboy);
     virtual ~Cpu();
@@ -48,58 +45,23 @@ private:
     bool _interrupt_ime_lag;
 
     // Registers
-    Pair _PC;
+private:
 #ifdef _SP
 #undef _SP // this is defined in some msft header
 #endif
-    Pair _SP;
-
+#define MAKE_REG(hi, lo) union { u16 W; struct { u8 lo; u8 hi; } B; } hi ## lo;
     struct
     {
-        union
-        {
-            u16 W;
-            struct
-            {
-                u8 F;
-                u8 A;
-            } B;
-        } AF;
-
-        union
-        {
-            u16 W;
-            struct
-            {
-                u8 C;
-                u8 B;
-            } B;
-        } BC;
-
-        union
-        {
-            u16 W;
-            struct
-            {
-                u8 E;
-                u8 D;
-            } B;
-        } DE;
-
-        union
-        {
-            u16 W;
-            struct
-            {
-                u8 L;
-                u8 H;
-            } B;
-        } HL;
-
+        MAKE_REG(A, F)
+        MAKE_REG(B, C)
+        MAKE_REG(D, E)
+        MAKE_REG(H, L)
     } _regs;
+    Pair _PC;
+    Pair _SP;
 
+    // Operands
 private:
-    // operand abstractions
     class IOperand8
     {
     public:
@@ -176,6 +138,49 @@ private:
         Cpu& _cpu;
     };
 
+    class IndirectImmediate : public IOperand8
+    {
+    public:
+        u16 Immediate;
+
+        IndirectImmediate(Cpu& cpu)
+            : _cpu(cpu)
+            , Immediate(0)
+        {
+        }
+
+        IndirectImmediate& FromPC()
+        {
+            Immediate = _cpu.Read16BumpPC();
+            return *this;
+        }
+
+        IndirectImmediate& FromRegC()
+        {
+            Immediate = 0xFF00 | (u16)_cpu._regs.BC.B.C;
+            return *this;
+        }
+
+        IndirectImmediate& ForLDH()
+        {
+            Immediate = 0xFF00 | (u16)_cpu.Read8BumpPC();
+            return *this;
+        }
+
+        virtual u8 Read()
+        {
+            return _cpu.Read8(Immediate);
+        }
+
+        virtual void Write(u8 val)
+        {
+            _cpu.Write8(Immediate, val);
+        }
+
+    private:
+        Cpu& _cpu;
+    };
+
     class Register8 : public IOperand8
     {
     public:
@@ -243,43 +248,6 @@ private:
         u16& _reg;
     };
 
-    class IndirectImmediate : public IOperand8
-    {
-    public:
-        u16 Immediate;
-
-        IndirectImmediate(Cpu& cpu)
-            : _cpu(cpu)
-            , Immediate(0)
-        {
-        }
-
-        IndirectImmediate& FromPC()
-        {
-            Immediate = _cpu.Read16BumpPC();
-            return *this;
-        }
-
-        IndirectImmediate& ForLDH()
-        {
-            Immediate = 0xFF00 | (u16)_cpu.Read8BumpPC();
-            return *this;
-        }
-
-        virtual u8 Read()
-        {
-            return _cpu.Read8(Immediate);
-        }
-
-        virtual void Write(u8 val)
-        {
-            _cpu.Write8(Immediate, val);
-        }
-
-    private:
-        Cpu& _cpu;
-    };
-
     IOperand8* _pOpSrc8;
     IOperand8* _pOpDst8;
     IOperand16* _pOpSrc16;
@@ -287,6 +255,8 @@ private:
 
     Immediate8 _imm8;
     Immediate16 _imm16;
+
+    IndirectImmediate _indImm;
 
     Register8 _regA;
     Register8 _regB;
@@ -297,28 +267,28 @@ private:
     Register8 _regH;
     Register8 _regL;
 
-    Register16 _regSP;
     Register16 _regAF;
     Register16 _regBC;
     Register16 _regDE;
     Register16 _regHL;
+    Register16 _regSP;
 
     IndirectReg _indBC;
     IndirectReg _indDE;
     IndirectReg _indHL;
 
-    IndirectImmediate _indImm;
-
-    // Decode Items
+    // Decode Tables
 private:
     typedef void(Cpu::*AluOp)();
     typedef bool(Cpu::*CondOp)();
+    typedef void(Cpu::*RotOp)();
 
     std::vector<IOperand8*> _decode_r;
     std::vector<IOperand16*> _decode_rp;
     std::vector<IOperand16*> _decode_rp2;
-    std::vector<AluOp> _decode_alu;
     std::vector<CondOp> _decode_cc;
+    std::vector<AluOp> _decode_alu;
+    std::vector<RotOp> _decode_rot;
 
     // Flag Operations
 private:
@@ -329,8 +299,10 @@ private:
     void ResetFlags();
     void SetFlag(u8 flag, bool set);
     void SetZ(u8 val);
+    void ResetZ();
     void SetN();
     void ResetN();
+    void SetH();
     void SetH(bool set);
     void ResetH();
     void SetC(bool set);
@@ -386,6 +358,17 @@ private:
     void RET(bool cond);
     void RETI();
 
-    // helpers
+    // Operation Helpers
     u8 sub_help();
+
+    u8 rlc_help(u8 val);
+    u8 rl_help(u8 val);
+    u8 rrc_help(u8 val);
+    u8 rr_help(u8 val);
+
+    // These do not set the Z flag, caller must
+    u8 shift_left_help(u8 val, bool lsb);
+    u8 shift_right_help(u8 val, bool msb);
+
+    bool bit_help(u8 val, u8 bitNum);
 };

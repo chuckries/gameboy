@@ -15,6 +15,13 @@ Cpu::Cpu(const Gameboy& gameboy)
     , _disassembler(nullptr)
     , _interrupt_ime(false)
     , _interrupt_ime_lag(false)
+    , _pOpSrc8(nullptr)
+    , _pOpDst8(nullptr)
+    , _pOpSrc16(nullptr)
+    , _pOpDst16(nullptr)
+    , _imm8(*this)
+    , _imm16(*this)
+    , _indImm(*this)
     , _regs{ 0 }
     , _regA(_regs.AF.B.A)
     , _regB(_regs.BC.B.B)
@@ -32,14 +39,12 @@ Cpu::Cpu(const Gameboy& gameboy)
     , _indBC(*this, _regs.BC.W)
     , _indDE(*this, _regs.DE.W)
     , _indHL(*this, _regs.HL.W)
-    , _indImm(*this)
-    , _imm8(*this)
-    , _imm16(*this)
     , _decode_r{ &_regB, &_regC, &_regD, &_regE, &_regH, &_regL, &_indHL, &_regA }
     , _decode_rp{ &_regBC, &_regDE, &_regHL, &_regSP }
     , _decode_rp2{ &_regBC, &_regDE, &_regHL, &_regAF }
-    , _decode_alu{ &Cpu::ADD8, &Cpu::ADC, &Cpu::SUB, &Cpu::SBC, &Cpu::AND, &Cpu::XOR, &Cpu::OR, &Cpu::CP }
     , _decode_cc{ &Cpu::CondNZ, &Cpu::CondZ, &Cpu::CondNC, &Cpu::CondC }
+    , _decode_alu{ &Cpu::ADD8, &Cpu::ADC, &Cpu::SUB, &Cpu::SBC, &Cpu::AND, &Cpu::XOR, &Cpu::OR, &Cpu::CP }
+    , _decode_rot{ &Cpu::RLC, &Cpu::RRC, &Cpu::RL, &Cpu::RR, &Cpu::SLA, &Cpu::SRA, &Cpu::SWAP, &Cpu::SRL }
 {
 
 }
@@ -146,7 +151,8 @@ void Cpu::Decode()
             // NOP
             break;
         case 0x010:
-            // DJNZ
+            // STOP
+            Read8BumpPC(); // 0x00 byte
             __debugbreak();
             break;
         case 0x18:
@@ -285,27 +291,27 @@ void Cpu::Decode()
             break;
         case 0x07:
             // RLCA
-            __debugbreak();
+            RLCA();
             break;
         case 0xF:
             // RRCA
-            __debugbreak();
+            RRCA();
             break;
         case 0x17:
             // RLA
-            __debugbreak();
+            RLA();
             break;
         case 0x1F:
             // RRA
-            __debugbreak();
+            RRA();
             break;
         case 0x27:
             // DAA
-            __debugbreak();
+            DAA();
             break;
         case 0x2F:
             // CPL
-            __debugbreak();
+            CPL();
             break;
         case 0x37:
             // SCF
@@ -504,7 +510,8 @@ void Cpu::Decode()
             break;
         case 0xE9:
             // JP HL
-            __debugbreak();
+            _pOpSrc16 = &_regHL;
+            JP(true);
             break;
         case 0xF9:
             // LD SP,HL
@@ -522,19 +529,27 @@ void Cpu::Decode()
             break;
         case 0xE2:
             // LD ($FF00+C),A
-            __debugbreak();
+            _pOpSrc8 = &_regA;
+            _pOpDst8 = &_indImm.FromRegC();
+            LD8();
             break;
         case 0xEA:
             // LD (nn),A
-            __debugbreak();
+            _pOpSrc8 = &_regA;
+            _pOpDst8 = &_indImm.FromPC();
+            LD8();
             break;
         case 0xF2:
             // LD A,($FF00+C)
-            __debugbreak();
+            _pOpSrc8 = &_indImm.FromRegC();
+            _pOpDst8 = &_regA;
+            LD8();
             break;
         case 0xFA:
             // LD A,(nn)
-            __debugbreak();
+            _pOpSrc8 = &_indImm.FromPC();
+            _pOpDst8 = &_regA;
+            LD8();
             break;
         case 0xC3:
             // JP nn
@@ -554,7 +569,8 @@ void Cpu::Decode()
         case 0xD4:
         case 0xDC:
             // CALL cc[y],nn
-            __debugbreak();
+            _pOpSrc16 = &_imm16.FromPC();
+            CALL((*this.*_decode_cc[y])());
             break;
         case 0xC5:
         case 0xD5:
@@ -565,7 +581,8 @@ void Cpu::Decode()
             break;
         case 0xCD:
             // CALL nn
-            __debugbreak();
+            _pOpSrc16 = &_imm16.FromPC();
+            CALL(true);
             break;
         case 0xC6:
         case 0xCE:
@@ -588,7 +605,7 @@ void Cpu::Decode()
         case 0xF7:
         case 0xFF:
             // RST y*8
-            __debugbreak();
+            RST(y << 3);
             break;
         default:
             __debugbreak();
@@ -660,6 +677,11 @@ void Cpu::SetZ(u8 val)
     SetFlag(Z_FLAG, val == 0);
 }
 
+void Cpu::ResetZ()
+{
+    SetFlag(Z_FLAG, false);
+}
+
 void Cpu::SetN()
 {
     SetFlag(N_FLAG, true);
@@ -668,6 +690,11 @@ void Cpu::SetN()
 void Cpu::ResetN()
 {
     SetFlag(N_FLAG, false);
+}
+
+void Cpu::SetH()
+{
+    SetFlag(H_FLAG, true);
 }
 
 void Cpu::SetH(bool set)
@@ -783,7 +810,7 @@ void Cpu::INC8()
     _pOpSrc8->Write(newVal);
     SetZ(newVal);
     ResetN();
-    SetH(false);
+    ResetH();
     val &= 0x0F;
     val++;
     SetH((val & 0xF0) != 0);
@@ -801,7 +828,7 @@ void Cpu::DEC8()
     _pOpSrc8->Write(newVal);
     SetZ(newVal);
     SetN();
-    SetH(false);
+    ResetH();
     val = (val & 0x0F);
     val--;
     SetH((val & 0xF0) != 0);
@@ -850,72 +877,93 @@ void Cpu::EI()
 
 void Cpu::RLCA()
 {
-    __debugbreak();
+    _regs.AF.B.A = rlc_help(_regs.AF.B.A);
+    ResetZ();
 }
 
 void Cpu::RLA()
 {
-    __debugbreak();
+    _regs.AF.B.A = rl_help(_regs.AF.B.A);
+    ResetZ();
 }
 
 void Cpu::RRCA()
 {
-    __debugbreak();
+    _regs.AF.B.A = rrc_help(_regs.AF.B.A);
+    ResetZ();
 }
 
 void Cpu::RRA()
 {
-    __debugbreak();
+    _regs.AF.B.A = rr_help(_regs.AF.B.A);
+    ResetZ();
 }
 
 void Cpu::RLC()
 {
-    __debugbreak();
+    u8 val = rlc_help(_pOpSrc8->Read());
+    SetZ(val);
+    _pOpSrc8->Write(val);
 }
 
 void Cpu::RL()
 {
-    __debugbreak();
+    u8 val = rl_help(_pOpSrc8->Read());
+    SetZ(val);
+    _pOpSrc8->Write(val);
 }
 
 void Cpu::RRC()
 {
-    __debugbreak();
+    u8 val = rrc_help(_pOpSrc8->Read());
+    SetZ(val);
+    _pOpSrc8->Write(val);
 }
 
 void Cpu::RR()
 {
-    __debugbreak();
+    u8 val = rr_help(_pOpSrc8->Read());
+    SetZ(val);
+    _pOpSrc8->Write(val);
 }
 
 void Cpu::SLA()
 {
-    __debugbreak();
+    u8 val = shift_left_help(_pOpSrc8->Read(), false);
+    SetZ(val);
+    _pOpSrc8->Write(val);
 }
 
 void Cpu::SRA()
 {
-    __debugbreak();
+    u8 val = _pOpSrc8->Read();
+    val = shift_right_help(val, bit_help(val, 7));
+    SetZ(val);
+    _pOpSrc8->Write(val);
 }
 
 void Cpu::SRL()
 {
-    __debugbreak();
+    u8 val = shift_right_help(_pOpSrc8->Read(), false);
+    SetZ(val);
+    _pOpSrc8->Write(val);
 }
 
 void Cpu::BIT(u8 val)
 {
-    __debugbreak();
+    ResetN();
+    SetH();
+    SetZ(!bit_help(_pOpSrc8->Read(), val));
 }
 
 void Cpu::SET(u8 val)
 {
-    __debugbreak();
+    _pOpSrc8->Write(_pOpSrc8->Read() | (1 << val));
 }
 
 void Cpu::RES(u8 val)
 {
-    __debugbreak();
+    _pOpSrc8->Write(_pOpSrc8->Read() & ~(1 << val));
 }
 
 void Cpu::JP(bool condition)
@@ -973,6 +1021,54 @@ u8 Cpu::sub_help()
     SetH((left & 0xF0) != 0);
 
     return word.B.L;
+}
+
+u8 Cpu::rlc_help(u8 val)
+{
+    return shift_left_help(val, bit_help(val, 7));
+}
+
+u8 Cpu::rl_help(u8 val)
+{
+    return shift_left_help(val, CondC());
+}
+
+u8 Cpu::rrc_help(u8 val)
+{
+    return shift_right_help(val, bit_help(val, 1));
+}
+
+u8 Cpu::rr_help(u8 val)
+{
+    return shift_right_help(val, CondC());
+}
+
+// Does not set Z Flag, caller must
+u8 Cpu::shift_left_help(u8 val, bool lsb)
+{
+    bool newCarry = bit_help(val, 7);
+    val <<= 1;
+    val |= (lsb ? 1 : 0);
+    SetC(newCarry);
+    ResetH();
+    ResetN();
+    return val;
+}
+
+u8 Cpu::shift_right_help(u8 val, bool msb)
+{
+    bool newCarry = bit_help(val, 1);
+    val >>= 1;
+    val |= (msb ? (1 << 7) : 0);
+    SetC(newCarry);
+    ResetH();
+    ResetN();
+    return val;
+}
+
+bool Cpu::bit_help(u8 val, u8 bitNum)
+{
+    return (val & (1 << bitNum)) != 0;
 }
 
 #if defined(TRACE)
