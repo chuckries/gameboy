@@ -13,11 +13,10 @@ public:
     void Init();
     void UnInit();
 
-    void Step();
+    u32 Step();
 
 private:
     u8 Read8(u16 addr);
-    u16 Read16(u16 addr);
 
     void Write8(u16 addr, u8 val);
     void Write16(u16 addr, u16 val);
@@ -25,8 +24,7 @@ private:
     u8 Read8BumpPC();
     u16 Read16BumpPC();
 
-    void CleanState();
-    void DoInterrupt();
+    bool DoInterrupt();
     void Decode();
     void Trace();
 
@@ -34,6 +32,10 @@ private:
     const Gameboy& _gameboy;
     std::shared_ptr<MemoryMap> _mem;
     std::unique_ptr<Disassembler> _disassembler;
+
+    u32 _cycles;
+    static const u32 CYCLES[256];
+    static const u32 CB_CYCLES[8];
 
 private:
     // interrupt stuff

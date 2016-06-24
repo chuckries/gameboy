@@ -9,10 +9,37 @@ const u8 Cpu::N_FLAG = (1 << 6);
 const u8 Cpu::H_FLAG = (1 << 5);
 const u8 Cpu::C_FLAG = (1 << 4);
 
+const u32 Cpu::CYCLES[256] = {
+/*       x0  x1  x2  x3  x4  x5  x6  x7  x8  x9  xA  xB  xC  xD  xE  xF */
+/* 0x */  4, 12,  8,  8,  4,  4,  8,  4, 20,  8,  8,  8,  4,  4,  8,  4,
+/* 1x */  4, 12,  8,  8,  4,  4,  8,  4,  8,  8,  8,  8,  4,  4,  8,  4,
+/* 2x */  8, 12,  8,  8,  4,  4,  8,  4,  8,  8,  8,  8,  4,  4,  8,  4,
+/* 3x */  8, 12,  8,  8, 12, 12, 12,  4,  8,  8,  8,  8,  4,  4,  8,  4,
+/* 4x */  4,  4,  4,  4,  4,  4,  8,  4,  4,  4,  4,  4,  4,  4,  8,  4,
+/* 5x */  4,  4,  4,  4,  4,  4,  8,  4,  4,  4,  4,  4,  4,  4,  8,  4,
+/* 6x */  4,  4,  4,  4,  4,  4,  8,  4,  4,  4,  4,  4,  4,  4,  8,  4,
+/* 7x */  8,  8,  8,  8,  8,  8,  4,  8,  4,  4,  4,  4,  4,  4,  8,  4,
+/* 8x */  4,  4,  4,  4,  4,  4,  8,  4,  4,  4,  4,  4,  4,  4,  8,  4,
+/* 9x */  4,  4,  4,  4,  4,  4,  8,  4,  4,  4,  4,  4,  4,  4,  8,  4,
+/* Ax */  4,  4,  4,  4,  4,  4,  8,  4,  4,  4,  4,  4,  4,  4,  8,  4,
+/* Bx */  4,  4,  4,  4,  4,  4,  8,  4,  4,  4,  4,  4,  4,  4,  8,  4,
+/* Cx */  8, 12, 12, 12, 12, 16,  8, 32,  8,  8, 12, 00, 12, 12,  8, 32,
+/* Dx */  8, 12, 12, 00, 12, 16,  8, 32,  8,  8, 12, 00, 12, 00, 00, 32,
+/* Ex */ 12, 12,  8, 00, 00, 16,  8, 32, 16,  4, 16, 00, 00, 00,  8, 32,
+/* Fx */ 12, 12,  8,  4, 00, 16,  8, 32, 12,  8, 16,  4, 00, 00,  8, 32
+};
+
+const u32 Cpu::CB_CYCLES[8] = {
+/* x0  x1  x2  x3  x4  x5  x6  x7 */
+/* x8  x9  xA  xB  xC  xD  xE  xF */
+    8,  8,  8,  8,  8,  8, 16,  8
+};
+
 Cpu::Cpu(const Gameboy& gameboy)
     : _gameboy(gameboy)
     , _mem(nullptr)
     , _disassembler(nullptr)
+    , _cycles(0)
     , _interrupt_ime(false)
     , _interrupt_ime_lag(false)
     , _pOpSrc8(nullptr)
@@ -59,6 +86,8 @@ void Cpu::Init()
     _mem = _gameboy._memoryMap;
     _disassembler = std::make_unique<Disassembler>(_mem);
 
+    _cycles = 0;
+
     _PC.W = 0x100;
     _regs.AF.W = 0x01B0;
     _regs.BC.W = 0x0013;
@@ -78,11 +107,16 @@ u8 Cpu::Read8(u16 addr)
     return _mem->Load(addr);
 }
 
-u16 Cpu::Read16(u16 addr)
+u8 Cpu::Read8BumpPC()
+{
+    return Read8(_PC.W++);
+}
+
+u16 Cpu::Read16BumpPC()
 {
     Pair word;
-    word.B.L = Read8(addr);
-    word.B.H = Read8(addr + 1);
+    word.B.L = Read8BumpPC();
+    word.B.H = Read8BumpPC();
     return word.W;
 }
 
@@ -99,23 +133,19 @@ void Cpu::Write16(u16 addr, u16 val)
     Write8(addr + 1, word.B.H);
 }
 
-void Cpu::Step()
+u32 Cpu::Step()
 {
-    DoInterrupt();
-    Trace();
-    Decode();
-    CleanState();
+    _cycles = 0;
+
+    if (!DoInterrupt())
+    {
+        Decode();
+    }
+
+    return _cycles;
 }
 
-void Cpu::CleanState()
-{
-    _pOpSrc8 = nullptr;
-    _pOpDst8 = nullptr;
-    _pOpSrc16 = nullptr;
-    _pOpDst16 = nullptr;
-}
-
-void Cpu::DoInterrupt()
+bool Cpu::DoInterrupt()
 {
     if (_interrupt_ime_lag)
     {
@@ -125,10 +155,14 @@ void Cpu::DoInterrupt()
     {
         _interrupt_ime_lag = true;
     }
+
+    return false;
 }
 
 void Cpu::Decode()
 {
+    Trace();
+
     u8 op = Read8BumpPC();
 
     bool prefix = op == 0xCB;
@@ -145,6 +179,7 @@ void Cpu::Decode()
 
     if (!prefix)
     {
+        _cycles += CYCLES[op];
         switch (op)
         {
         case 0x00:
@@ -163,8 +198,12 @@ void Cpu::Decode()
         case 0x28:
         case 0x30:
         case 0x38:
-            // JR cc[y-4],d
-            JR((*this.*_decode_cc[y - 4])());
+            {
+                // JR cc[y-4],d
+                bool cond = (*this.*_decode_cc[y - 4])();
+                if (cond) _cycles += 4;
+                JR(cond);
+            }
             break;
         case 0x01:
         case 0x11:
@@ -471,7 +510,11 @@ void Cpu::Decode()
         case 0xD0:
         case 0xD8:
             // RET cc[y]
-            RET((*this.*_decode_cc[y])());
+            {
+                bool cond = (*this.*_decode_cc[y])();
+                if (cond) _cycles += 12;
+                RET(cond);
+            }
             break;
         case 0xE0:
             // LD ($FF00+n),A
@@ -524,8 +567,12 @@ void Cpu::Decode()
         case 0xD2:
         case 0xDA:
             // JP cc[y],nn
-            _pOpSrc16 = &_imm16.FromPC();
-            JP((*this.*_decode_cc[y])());
+            {
+                _pOpSrc16 = &_imm16.FromPC();
+                bool cond = (*this.*_decode_cc[y])();
+                if (cond) _cycles += 4;
+                JP(cond);
+            }
             break;
         case 0xE2:
             // LD ($FF00+C),A
@@ -569,8 +616,12 @@ void Cpu::Decode()
         case 0xD4:
         case 0xDC:
             // CALL cc[y],nn
-            _pOpSrc16 = &_imm16.FromPC();
-            CALL((*this.*_decode_cc[y])());
+            {
+                _pOpSrc16 = &_imm16.FromPC();
+                bool cond = (*this.*_decode_cc[y])();
+                if (cond) _cycles += 12;
+                CALL(cond);
+            }
             break;
         case 0xC5:
         case 0xD5:
@@ -614,6 +665,7 @@ void Cpu::Decode()
     }
     else
     {
+        _cycles += CB_CYCLES[op & 0x7];
         switch (op & 0xC0)
         {
         case 0x00:
@@ -640,18 +692,11 @@ void Cpu::Decode()
             break;
         }
     }
-}
 
-u8 Cpu::Read8BumpPC()
-{
-    return Read8(_PC.W++);
-}
-
-u16 Cpu::Read16BumpPC()
-{
-    u16 word = Read16(_PC.W);
-    _PC.W += 2;
-    return word;
+    _pOpSrc8 = nullptr;
+    _pOpSrc16 = nullptr;
+    _pOpDst8 = nullptr;
+    _pOpDst16 = nullptr;
 }
 
 // Flag Operations
@@ -980,7 +1025,9 @@ void Cpu::JR(bool condition)
     i8 disp = (i8)Read8BumpPC();
     if (condition)
     {
-        _PC.W += (i16)disp;
+        i16 oldPC = (i16)_PC.W;
+        i16 newPC = oldPC + (i16)(disp);
+        _PC.W = (u16)newPC;
     }
 }
 
