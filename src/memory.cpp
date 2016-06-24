@@ -47,12 +47,13 @@ u8 MemoryMap::Load(u16 addr)
 {
     if (addr < 0x8000)
     {
+        // Cartridge ROM
         return _cart->Load(addr);
     }
     else if (addr < 0xA000)
     {
         // VRAM
-        __debugbreak();
+        return _video->LoadVRam(addr);
     }
     else if (addr < 0xC000)
     {
@@ -69,7 +70,7 @@ u8 MemoryMap::Load(u16 addr)
     else if (addr < 0xFEA0)
     {
         // OAM
-        __debugbreak();
+        _video->LoadOAM(addr);
     }
     else if (addr < 0xFF00)
     {
@@ -171,12 +172,13 @@ void MemoryMap::Store(u16 addr, u8 val)
 {
     if (addr < 0x8000)
     {
+        // Cartridge ROM
         _cart->Store(addr, val);
     }
     else if (addr < 0xA000)
     {
         // VRAM
-        __debugbreak();
+        _video->StoreVRam(addr, val);
     }
     else if (addr < 0xC000)
     {
@@ -193,12 +195,11 @@ void MemoryMap::Store(u16 addr, u8 val)
     else if (addr < 0xFEA0)
     {
         // OAM
-        __debugbreak();
+        _video->StoreOAM(addr, val);
     }
     else if (addr < 0xFF00)
     {
         // Unusable
-        __debugbreak();
     }
     else if (addr < 0xFF4C)
     {
@@ -298,7 +299,6 @@ void MemoryMap::Store(u16 addr, u8 val)
     else if (addr < 0xFF80)
     {
         // Unusable
-        __debugbreak();
     }
     else if (addr < 0xFFFF)
     {

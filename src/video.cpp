@@ -10,6 +10,8 @@ const u32 Video::SCANLINES_PER_FRAME = 154;
 Video::Video(const Gameboy& gameboy)
     : _gameboy(gameboy)
     , _cpu(nullptr)
+    , _vram(0)
+    , _oam(0)
     , _scanlineCycles(0)
     , _ly(0)
 {
@@ -24,6 +26,9 @@ void Video::Init()
 {
     _cpu = _gameboy._cpu;
 
+    _vram.resize(0x2000, 0);
+    _oam.resize(0xA0, 0);
+
     _scanlineCycles = 0;
     _ly = 0;
 }
@@ -31,6 +36,30 @@ void Video::Init()
 void Video::UnInit()
 {
     _cpu = nullptr;
+}
+
+u8 Video::LoadVRam(u16 addr)
+{
+    addr &= 0x1FFF;
+    return _vram[addr];
+}
+
+void Video::StoreVRam(u16 addr, u8 val)
+{
+    addr &= 0x1FFF;
+    _vram[addr] = val;
+}
+
+u8 Video::LoadOAM(u16 addr)
+{
+    addr &= 0xFF;
+    return _oam[addr];
+}
+
+void Video::StoreOAM(u16 addr, u8 val)
+{
+    addr &= 0xFF;
+    _oam[addr] = val;
 }
 
 void Video::Step(u32 cycles)

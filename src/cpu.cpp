@@ -264,7 +264,7 @@ void Cpu::Decode()
         case 0x2A:
             // LDI A,(HL)
             _pOpSrc8 = &_indHL;
-            _pOpSrc8 = &_regA;
+            _pOpDst8 = &_regA;
             LD8();
             _regs.HL.W++;
             break;

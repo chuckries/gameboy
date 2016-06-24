@@ -42,7 +42,6 @@ private:
     u8 _io_STAT;    // FF41
     u8 _io_SCY;     // FF42
     u8 _io_SCX;     // FF43
-    u8 _io_LY;      // FF44
     u8 _io_LYC;     // FF45
     u8 _io_DMA;     // FF46
     u8 _io_BGP;     // FF47
