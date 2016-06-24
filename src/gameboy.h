@@ -7,11 +7,17 @@ class Cart;
 
 class Gameboy
 {
+    friend class Cpu;
+    friend class Video;
+    friend class MemoryMap;
+    friend class Cart;
 public:
     Gameboy();
     virtual ~Gameboy();
 
     void Init();
+    void UnInit();
+
     void LoadRom(const char* romPath);
 
     void DoFrame();

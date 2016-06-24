@@ -1,5 +1,6 @@
 #pragma once
 
+class Gameboy;
 class MemoryMap;
 class Disassembler;
 
@@ -9,10 +10,12 @@ private:
     class IOperand8;
     class IOperand16;
 public:
-    Cpu(std::shared_ptr<MemoryMap> mem);
+    Cpu(const Gameboy& gameboy);
     virtual ~Cpu();
 
     void Init();
+    void UnInit();
+
     void Step();
 
 private:
@@ -31,6 +34,7 @@ private:
     void Trace();
 
 private:
+    const Gameboy& _gameboy;
     std::shared_ptr<MemoryMap> _mem;
     std::unique_ptr<Disassembler> _disassembler;
 

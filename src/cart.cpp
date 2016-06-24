@@ -1,9 +1,11 @@
 #include "stdafx.h"
 #include "cart.h"
+#include "gameboy.h"
 #include <fstream>
 
-Cart::Cart()
-    : _rom(0)
+Cart::Cart(const Gameboy& gameboy)
+    : _gameboy(gameboy)
+    , _rom(0)
 {
 }
 
@@ -15,6 +17,10 @@ Cart::~Cart()
 void Cart::Init()
 {
     _rom.clear();
+}
+
+void Cart::UnInit()
+{
 }
 
 u8 Cart::Load(u16 addr)

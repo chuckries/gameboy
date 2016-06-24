@@ -2,9 +2,8 @@
 #include "video.h"
 #include "memory.h"
 
-Video::Video(std::shared_ptr<MemoryMap> mem)
-    : _mem(mem)
-    , _vram(_mem->_vram)
+Video::Video(const Gameboy& gameboy)
+    : _gameboy(gameboy)
 {
 }
 
@@ -16,6 +15,10 @@ Video::~Video()
 void Video::Init()
 {
 
+}
+
+void Video::UnInit()
+{
 }
 
 void Video::Step()

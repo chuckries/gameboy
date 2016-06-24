@@ -1,9 +1,11 @@
 #include "stdafx.h"
 #include "memory.h"
+#include "gameboy.h"
 #include "cart.h"
 
-MemoryMap::MemoryMap(std::shared_ptr<Cart> cart)
-    : _cart(cart)
+MemoryMap::MemoryMap(const Gameboy& gameboy)
+    : _gameboy(gameboy)
+    , _cart(nullptr)
 {
 }
 
@@ -13,9 +15,10 @@ MemoryMap::~MemoryMap()
 
 void MemoryMap::Init()
 {
+    _cart = _gameboy._cart;
+
     _wram.resize(0x2000, 0);
     _hram.resize(0x80, 0);
-    _vram.resize(0x2000, 0);
 
     _io_TIMA = 0;
     _io_TMA = 0;
@@ -30,6 +33,11 @@ void MemoryMap::Init()
     _io_WX = 0;
     _io_WY = 0;
     _io_IE = 0;
+}
+
+void MemoryMap::UnInit()
+{
+    _cart = nullptr;
 }
 
 u8 MemoryMap::Load(u16 addr)

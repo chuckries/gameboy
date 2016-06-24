@@ -1,17 +1,18 @@
 #pragma once
 
-class MemoryMap;
+class Gameboy;
 
 class Video
 {
 public:
-    Video(std::shared_ptr<MemoryMap> mem);
+    Video(const Gameboy& gameboy);
     virtual ~Video();
 
     void Init();
+    void UnInit();
+
     void Step();
 
 private:
-    std::shared_ptr<MemoryMap> _mem;
-    std::vector<u8>& _vram; // vram lives in MemoryMap
+    const Gameboy& _gameboy;
 };

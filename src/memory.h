@@ -1,20 +1,22 @@
 #pragma once
 
+class Gameboy;
 class Cart;
 
 class MemoryMap
 {
-    friend class Video;
 public:
-    MemoryMap(std::shared_ptr<Cart> cart);
+    MemoryMap(const Gameboy& gameboy);
     virtual ~MemoryMap();
 
     void Init();
+    void UnInit();
 
     u8 Load(u16 addr);
     void Store(u16 addr, u8 val);
 
 private:
+    const Gameboy& _gameboy;
     std::shared_ptr<Cart> _cart;
 
     // Work RAM C000 - DFFF
@@ -23,9 +25,6 @@ private:
 
     // High RAM FF80 - FFFE
     std::vector<u8> _hram;
-
-    // Video RAM (Not 100% sure why it lives here, but Video has a reference to it)
-    std::vector<u8> _vram;
 
     // I/O Registers
 private:

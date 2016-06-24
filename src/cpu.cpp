@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "cpu.h"
+#include "gameboy.h"
 #include "memory.h"
 #include "disassembler.h"
 
@@ -8,9 +9,10 @@ const u8 Cpu::N_FLAG = (1 << 6);
 const u8 Cpu::H_FLAG = (1 << 5);
 const u8 Cpu::C_FLAG = (1 << 4);
 
-Cpu::Cpu(std::shared_ptr<MemoryMap> mem)
-    : _mem(mem)
-    , _disassembler(std::make_unique<Disassembler>(mem))
+Cpu::Cpu(const Gameboy& gameboy)
+    : _gameboy(gameboy)
+    , _mem(nullptr)
+    , _disassembler(nullptr)
     , _interrupt_ime(false)
     , _interrupt_ime_lag(false)
     , _regs{ 0 }
@@ -22,11 +24,11 @@ Cpu::Cpu(std::shared_ptr<MemoryMap> mem)
     , _regF(_regs.AF.B.F)
     , _regH(_regs.HL.B.H)
     , _regL(_regs.HL.B.L)
-    , _regSP(_SP.W)
     , _regAF(_regs.AF.W)
     , _regBC(_regs.BC.W)
     , _regDE(_regs.DE.W)
     , _regHL(_regs.HL.W)
+    , _regSP(_SP.W)
     , _indBC(*this, _regs.BC.W)
     , _indDE(*this, _regs.DE.W)
     , _indHL(*this, _regs.HL.W)
@@ -49,12 +51,21 @@ Cpu::~Cpu()
 
 void Cpu::Init()
 {
+    _mem = _gameboy._memoryMap;
+    _disassembler = std::make_unique<Disassembler>(_mem);
+
     _PC.W = 0x100;
     _regs.AF.W = 0x01B0;
     _regs.BC.W = 0x0013;
     _regs.DE.W = 0x00D8;
     _regs.HL.W = 0x014D;
     _SP.W = 0xFFFE;
+}
+
+void Cpu::UnInit()
+{
+    _mem = nullptr;
+    _disassembler = nullptr;
 }
 
 u8 Cpu::Read8(u16 addr)
