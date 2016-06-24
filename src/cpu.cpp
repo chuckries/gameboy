@@ -360,7 +360,7 @@ void Cpu::Decode()
             break;
         case 0x3F:
             // CCF
-            SetC(false);
+            SetC(!CondC());
             ResetN();
             ResetH();
             break;

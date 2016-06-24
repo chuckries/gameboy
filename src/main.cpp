@@ -18,4 +18,6 @@ int main(int argc, const char* argv[])
     {
         gameboy.DoFrame();
     }
+
+    gameboy.UnInit();
 }

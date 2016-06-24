@@ -9,8 +9,8 @@ Gameboy::Gameboy()
 {
     _cart = std::make_shared<Cart>(*this);
     _memoryMap = std::make_shared<MemoryMap>(*this);
-    _cpu = std::make_unique<Cpu>(*this);
-    _video = std::make_unique<Video>(*this);
+    _cpu = std::make_shared<Cpu>(*this);
+    _video = std::make_shared<Video>(*this);
 }
 
 Gameboy::~Gameboy()
@@ -41,9 +41,10 @@ void Gameboy::LoadRom(const char* romPath)
 
 void Gameboy::DoFrame()
 {
+    u32 cycles = 0;
     for (;;)
     {
-        _cpu->Step();
-        _video->Step();
+        cycles = _cpu->Step();
+        _video->Step(cycles);
     }
 }

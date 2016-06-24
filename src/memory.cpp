@@ -2,10 +2,12 @@
 #include "memory.h"
 #include "gameboy.h"
 #include "cart.h"
+#include "video.h"
 
 MemoryMap::MemoryMap(const Gameboy& gameboy)
     : _gameboy(gameboy)
     , _cart(nullptr)
+    , _video(nullptr)
 {
 }
 
@@ -16,6 +18,7 @@ MemoryMap::~MemoryMap()
 void MemoryMap::Init()
 {
     _cart = _gameboy._cart;
+    _video = _gameboy._video;
 
     _wram.resize(0x2000, 0);
     _hram.resize(0x80, 0);
@@ -96,6 +99,31 @@ u8 MemoryMap::Load(u16 addr)
             return _io_TAC;
         case 0xFF0F:
             return _io_IF;
+        case 0xFF10:
+        case 0xFF11:
+        case 0xFF12:
+        case 0xFF13:
+        case 0xFF14:
+        case 0xFF16:
+        case 0xFF17:
+        case 0xFF18:
+        case 0xFF19:
+        case 0xFF1A:
+        case 0xFF1B:
+        case 0xFF1C:
+        case 0xFF1D:
+        case 0xFF1E:
+        case 0xFF20:
+        case 0xFF21:
+        case 0xFF22:
+        case 0xFF23:
+        case 0xFF24:
+        case 0xFF25:
+        case 0xFF26:
+        case 0xFF30:
+            // Sound Registers
+            __debugbreak();
+            break;
         case 0xFF40:
             return _io_LCDC;
         case 0xFF41:
@@ -105,7 +133,7 @@ u8 MemoryMap::Load(u16 addr)
         case 0xFF43:
             return _io_SCX;
         case 0xFF44:
-            return _io_LY;
+            return _video->LY();
         case 0xFF45:
             return _io_LYC;
         case 0xFF47:
@@ -205,6 +233,30 @@ void MemoryMap::Store(u16 addr, u8 val)
             break;
         case 0xFF0F:
             _io_IF = val;
+            break;
+        case 0xFF10:
+        case 0xFF11:
+        case 0xFF12:
+        case 0xFF13:
+        case 0xFF14:
+        case 0xFF16:
+        case 0xFF17:
+        case 0xFF18:
+        case 0xFF19:
+        case 0xFF1A:
+        case 0xFF1B:
+        case 0xFF1C:
+        case 0xFF1D:
+        case 0xFF1E:
+        case 0xFF20:
+        case 0xFF21:
+        case 0xFF22:
+        case 0xFF23:
+        case 0xFF24:
+        case 0xFF25:
+        case 0xFF26:
+        case 0xFF30:
+            // Sound Registers
             break;
         case 0xFF40:
             _io_LCDC = val;

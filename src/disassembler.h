@@ -30,6 +30,7 @@ private:
     u8 Read8(u16 addr);
     u16 Read16(u16 addr);
 
+    u8 Read8PC();
     u8 Read8BumpPC();
     u16 Read16BumpPC();
 
@@ -49,4 +50,5 @@ private:
     std::vector<std::string> _decode_rp;
     std::vector<std::string> _decode_rp2;
     std::vector<std::string> _decode_cc;
+    std::vector<std::string> _decode_rot;
 };

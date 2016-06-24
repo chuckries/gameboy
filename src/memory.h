@@ -2,6 +2,7 @@
 
 class Gameboy;
 class Cart;
+class Video;
 
 class MemoryMap
 {
@@ -18,6 +19,7 @@ public:
 private:
     const Gameboy& _gameboy;
     std::shared_ptr<Cart> _cart;
+    std::shared_ptr<Video> _video;
 
     // Work RAM C000 - DFFF
     // TODO: Half of this ram is swappable for CGB
