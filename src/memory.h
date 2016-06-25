@@ -37,7 +37,6 @@ private:
     u8 _io_TIMA;    // FF05
     u8 _io_TMA;     // FF06
     u8 _io_TAC;     // FF07
-    u8 _io_IF;      // FF0F
     u8 _io_LCDC;    // FF40
     u8 _io_STAT;    // FF41
     u8 _io_SCY;     // FF42
@@ -49,5 +48,4 @@ private:
     u8 _io_OBP1;    // FF49
     u8 _io_WY;      // FF4A
     u8 _io_WX;      // FF4B
-    u8 _io_IE;      // FFFF
 };

@@ -7,6 +7,16 @@ class Disassembler;
 class Cpu
 {
 public:
+    enum class InterruptType : u8
+    {
+        V_BLANK = (1 << 0),
+        LCDC = (1 << 1),
+        TIMER = (1 << 2),
+        SERIAL = (1 << 3),
+        INPUT = (1 << 4)
+    };
+
+public:
     Cpu(const Gameboy& gameboy);
     virtual ~Cpu();
 
@@ -14,9 +24,11 @@ public:
     void UnInit();
 
     u32 Step();
+    void RequestInterrupt(InterruptType interrupt);
 
 private:
     u8 Read8(u16 addr);
+    u16 Read16(u16 addr);
 
     void Write8(u16 addr, u8 val);
     void Write16(u16 addr, u16 val);
@@ -25,6 +37,7 @@ private:
     u16 Read16BumpPC();
 
     bool DoInterrupt();
+    void DMA(u8 val);
     void Decode();
     void Trace();
 
@@ -37,14 +50,16 @@ private:
     static const u32 CYCLES[256];
     static const u32 CB_CYCLES[8];
 
-private:
     // interrupt stuff
-
+private:
     // Interrup Master Enabl (and lag)
     // Any pending interrupts will not occur until after the instruction afer the EI instruction
     // _interrupt_ime_lag will be seet one instruction after _interrupt_ime is set
     bool _interrupt_ime;
     bool _interrupt_ime_lag;
+
+    u8 _interrupt_if;
+    u8 _interrupt_ie;
 
     // Registers
 private:
@@ -64,21 +79,39 @@ private:
 
     // Operands
 private:
-    class IOperand8
+    class ISrcOperand8
     {
     public:
         virtual u8 Read() = 0;
+    };
+
+    class IDstOperand8
+    {
+    public:
         virtual void Write(u8 val) = 0;
     };
 
-    class IOperand16
+    class IOperand8 : public ISrcOperand8, public IDstOperand8
+    {
+    };
+
+    class ISrcOperand16
     {
     public:
         virtual u16 Read() = 0;
+    };
+
+    class IDstOperand16
+    {
+    public:
         virtual void Write(u16 val) = 0;
     };
 
-    class Immediate8 : public IOperand8
+    class IOperand16 : public ISrcOperand16, public IDstOperand16
+    {
+    };
+
+    class Immediate8 : public ISrcOperand8
     {
     public:
         u8 Immediate;
@@ -100,16 +133,11 @@ private:
             return Immediate;
         }
 
-        virtual void Write(u8 val)
-        {
-            __debugbreak();
-        }
-
     private:
         Cpu& _cpu;
     };
 
-    class Immediate16 : public IOperand16
+    class Immediate16 : public ISrcOperand16
     {
     public:
         u16 Immedate;
@@ -129,11 +157,6 @@ private:
         virtual u16 Read()
         {
             return Immedate;
-        }
-
-        virtual void Write(u16 val)
-        {
-            __debugbreak();
         }
 
     private:
@@ -250,10 +273,12 @@ private:
         u16& _reg;
     };
 
-    IOperand8* _pOpSrc8;
-    IOperand8* _pOpDst8;
-    IOperand16* _pOpSrc16;
-    IOperand16* _pOpDst16;
+    ISrcOperand8* _pOpSrc8;
+    IDstOperand8* _pOpDst8;
+    IOperand8* _pOpRW8;
+    ISrcOperand16* _pOpSrc16;
+    IDstOperand16* _pOpDst16;
+    IOperand16* _pOpRW16;
 
     Immediate8 _imm8;
     Immediate16 _imm16;
@@ -308,6 +333,7 @@ private:
     void SetH(bool set);
     void ResetH();
     void SetC(bool set);
+    void ResetC();
     bool CondFlag(u8 flag);
     bool CondNZ();
     bool CondZ();
@@ -319,6 +345,8 @@ private:
     void LD8();
     void LD16();
     void LDHL();
+    void PUSH();
+    void POP();
     void ADD8();
     void ADD16();
     void ADC();
@@ -361,6 +389,9 @@ private:
     void RETI();
 
     // Operation Helpers
+    void push_help(u16 val);
+    u16 pop_help();
+
     u8 sub_help();
 
     u8 rlc_help(u8 val);

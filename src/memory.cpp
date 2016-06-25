@@ -35,7 +35,6 @@ void MemoryMap::Init()
     _io_OBP1 = 0xFF;
     _io_WX = 0;
     _io_WY = 0;
-    _io_IE = 0;
 }
 
 void MemoryMap::UnInit()
@@ -98,8 +97,6 @@ u8 MemoryMap::Load(u16 addr)
             return _io_TMA;
         case 0xFF07:
             return _io_TAC;
-        case 0xFF0F:
-            return _io_IF;
         case 0xFF10:
         case 0xFF11:
         case 0xFF12:
@@ -162,7 +159,7 @@ u8 MemoryMap::Load(u16 addr)
     }
     else
     {
-        return _io_IE;
+        __debugbreak();
     }
 
     return 0;
@@ -231,9 +228,6 @@ void MemoryMap::Store(u16 addr, u8 val)
         case 0xFF07:
             __debugbreak();
             _io_TAC = val;
-            break;
-        case 0xFF0F:
-            _io_IF = val;
             break;
         case 0xFF10:
         case 0xFF11:
@@ -308,7 +302,6 @@ void MemoryMap::Store(u16 addr, u8 val)
     }
     else
     {
-        // Interrupt Enable Register
-        _io_IE = val;
+        __debugbreak();
     }
 }
