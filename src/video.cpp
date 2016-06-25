@@ -30,6 +30,9 @@ void Video::Init()
     _oam.resize(0xA0, 0);
 
     _scanlineCycles = 0;
+
+    _lcdc = 0x91;
+    _stat = 0;
     _ly = 0;
 }
 

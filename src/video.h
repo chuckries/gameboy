@@ -21,7 +21,16 @@ public:
 
     // I/O
 public:
+    u8 ReadLCDC();
+    void WriteLCDC(u8 val);
+    u8 ReadSTAT();
+    void WriteSTAT(u8 val);
+    u8 SCY;
+    u8 SCX;
     u8 LY();
+    u8 LYC;
+    u8 WY;
+    u8 WX;
 
 private:
     const Gameboy& _gameboy;
@@ -37,5 +46,7 @@ private:
 
     // I/O
 private:
+    u8 _lcdc;
+    u8 _stat;
     u8 _ly;
 };

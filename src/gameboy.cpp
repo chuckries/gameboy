@@ -4,6 +4,7 @@
 #include "video.h"
 #include "memory.h"
 #include "cart.h"
+#include "timer.h"
 
 Gameboy::Gameboy()
 {
@@ -11,6 +12,7 @@ Gameboy::Gameboy()
     _memoryMap = std::make_shared<MemoryMap>(*this);
     _cpu = std::make_shared<Cpu>(*this);
     _video = std::make_shared<Video>(*this);
+    _timer = std::make_shared<Timer>(*this);
 }
 
 Gameboy::~Gameboy()
@@ -24,6 +26,7 @@ void Gameboy::Init()
     _memoryMap->Init();
     _cpu->Init();
     _video->Init();
+    _timer->Init();
 }
 
 void Gameboy::UnInit()
@@ -32,6 +35,7 @@ void Gameboy::UnInit()
     _memoryMap->UnInit();
     _cpu->UnInit();
     _video->UnInit();
+    _timer->UnInit();
 }
 
 void Gameboy::LoadRom(const char* romPath)
@@ -46,5 +50,6 @@ void Gameboy::DoFrame()
     {
         cycles = _cpu->Step();
         _video->Step(cycles);
+        _timer->Step(cycles);
     }
 }

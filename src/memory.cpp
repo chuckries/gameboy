@@ -3,6 +3,7 @@
 #include "gameboy.h"
 #include "cart.h"
 #include "video.h"
+#include "timer.h"
 
 MemoryMap::MemoryMap(const Gameboy& gameboy)
     : _gameboy(gameboy)
@@ -19,27 +20,21 @@ void MemoryMap::Init()
 {
     _cart = _gameboy._cart;
     _video = _gameboy._video;
+    _timer = _gameboy._timer;
 
     _wram.resize(0x2000, 0);
     _hram.resize(0x80, 0);
 
-    _io_TIMA = 0;
-    _io_TMA = 0;
-    _io_TAC = 0;
-    _io_LCDC = 0x91;
-    _io_SCY = 0;
-    _io_SCX = 0;
-    _io_LYC = 0;
     _io_BGP = 0xFC;
     _io_OBP0 = 0xFF;
     _io_OBP1 = 0xFF;
-    _io_WX = 0;
-    _io_WY = 0;
 }
 
 void MemoryMap::UnInit()
 {
     _cart = nullptr;
+    _video = nullptr;
+    _timer = nullptr;
 }
 
 u8 MemoryMap::Load(u16 addr)
@@ -90,13 +85,13 @@ u8 MemoryMap::Load(u16 addr)
             __debugbreak();
             return _io_SC;
         case 0xFF04:
-            return _io_DIV;
+            return _timer->ReadDIV();
         case 0xFF05:
-            return _io_TIMA;
+            return _timer->ReadTIMA();
         case 0xFF06:
-            return _io_TMA;
+            return _timer->ReadTMA();
         case 0xFF07:
-            return _io_TAC;
+            return _timer->ReadTAC();
         case 0xFF10:
         case 0xFF11:
         case 0xFF12:
@@ -123,17 +118,17 @@ u8 MemoryMap::Load(u16 addr)
             __debugbreak();
             break;
         case 0xFF40:
-            return _io_LCDC;
+            return _video->ReadLCDC();
         case 0xFF41:
-            return _io_STAT;
+            return _video->ReadSTAT();
         case 0xFF42:
-            return _io_SCY;
+            return _video->SCY;
         case 0xFF43:
-            return _io_SCX;
+            return _video->SCX;
         case 0xFF44:
             return _video->LY();
         case 0xFF45:
-            return _io_LYC;
+            return _video->LYC;
         case 0xFF47:
             return _io_BGP;
         case 0xFF48:
@@ -141,9 +136,9 @@ u8 MemoryMap::Load(u16 addr)
         case 0xFF49:
             return _io_OBP1;
         case 0xFF4A:
-            return _io_WY;
+            return _video->WY;
         case 0xFF4B:
-            return _io_WX;
+            return _video->WX;
         }
     }
     else if (addr < 0xFF80)
@@ -214,20 +209,16 @@ void MemoryMap::Store(u16 addr, u8 val)
             if (val  & (1 << 7)) __debugbreak();
             break;
         case 0xFF04:
-            _io_DIV = val;
-            __debugbreak();
+            _timer->WriteDIV();
             break;
         case 0xFF05:
-            __debugbreak();
-            _io_TIMA = val;
+            _timer->WriteTIMA(val);
             break;
         case 0xFF06:
-            __debugbreak();
-            _io_TMA = val;
+            _timer->WriteTMA(val);
             break;
         case 0xFF07:
-            __debugbreak();
-            _io_TAC = val;
+            _timer->WriteTAC(val);
             break;
         case 0xFF10:
         case 0xFF11:
@@ -254,38 +245,37 @@ void MemoryMap::Store(u16 addr, u8 val)
             // Sound Registers
             break;
         case 0xFF40:
-            _io_LCDC = val;
+            _video->WriteLCDC(val);
             break;
         case 0xFF41:
-            _io_STAT = val;
+            _video->WriteSTAT(val);
             break;
         case 0xFF42:
-            _io_SCY = val;
+            _video->SCY = val;
             break;
         case 0xFF43:
-            _io_SCX = val;
+            _video->SCX = val;
             break;
         case 0xFF45:
-            _io_LYC = val;
-            break;
-        case 0xFF46:
-            _io_DMA = val;
-            __debugbreak();
+            _video->LYC = val;
             break;
         case 0xFF47:
             _io_BGP = val;
+            __debugbreak();
             break;
         case 0xFF48:
             _io_OBP0 = val;
+            __debugbreak();
             break;
         case 0xFF49:
             _io_OBP1 = val;
+            __debugbreak();
             break;
         case 0xFF4A:
-            _io_WY = val;
+            _video->WY = val;
             break;
         case 0xFF4B:
-            _io_WX = val;
+            _video->WX = val;
             break;
         default: __debugbreak();
         }
