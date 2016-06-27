@@ -6,6 +6,8 @@ class MemoryMap;
 class Cart;
 class Timer;
 
+class SdlGfx;
+
 class Gameboy
 {
     friend class Cpu;
@@ -22,7 +24,7 @@ public:
 
     void LoadRom(const char* romPath);
 
-    void DoFrame();
+    void DoFrame(u8 gbScreen[]);
 private:
     std::shared_ptr<Cpu> _cpu;
     std::shared_ptr<Video> _video;

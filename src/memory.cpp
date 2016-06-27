@@ -24,10 +24,6 @@ void MemoryMap::Init()
 
     _wram.resize(0x2000, 0);
     _hram.resize(0x80, 0);
-
-    _io_BGP = 0xFC;
-    _io_OBP0 = 0xFF;
-    _io_OBP1 = 0xFF;
 }
 
 void MemoryMap::UnInit()
@@ -77,7 +73,7 @@ u8 MemoryMap::Load(u16 addr)
         switch (addr)
         {
         case 0xFF00:
-            return _io_P1 | 0b00001111;
+            return _io_P1 | 0b11001111;
         case 0xFF01:
             __debugbreak();
             return _io_SB;
@@ -114,6 +110,21 @@ u8 MemoryMap::Load(u16 addr)
         case 0xFF25:
         case 0xFF26:
         case 0xFF30:
+        case 0xFF31:
+        case 0xFF32:
+        case 0xFF33:
+        case 0xFF34:
+        case 0xFF35:
+        case 0xFF36:
+        case 0xFF37:
+        case 0xFF38:
+        case 0xFF39:
+        case 0xFF3A:
+        case 0xFF3B:
+        case 0xFF3C:
+        case 0xFF3D:
+        case 0xFF3E:
+        case 0xFF3F:
             // Sound Registers
             __debugbreak();
             break;
@@ -130,11 +141,11 @@ u8 MemoryMap::Load(u16 addr)
         case 0xFF45:
             return _video->LYC;
         case 0xFF47:
-            return _io_BGP;
+            return _video->ReadBGP();
         case 0xFF48:
-            return _io_OBP0;
+            return _video->ReadOBP0();
         case 0xFF49:
-            return _io_OBP1;
+            return _video->ReadOBP1();
         case 0xFF4A:
             return _video->WY;
         case 0xFF4B:
@@ -206,7 +217,6 @@ void MemoryMap::Store(u16 addr, u8 val)
             break;
         case 0xFF02:
             _io_SC = val;
-            if (val  & (1 << 7)) __debugbreak();
             break;
         case 0xFF04:
             _timer->WriteDIV();
@@ -242,6 +252,21 @@ void MemoryMap::Store(u16 addr, u8 val)
         case 0xFF25:
         case 0xFF26:
         case 0xFF30:
+        case 0xFF31:
+        case 0xFF32:
+        case 0xFF33:
+        case 0xFF34:
+        case 0xFF35:
+        case 0xFF36:
+        case 0xFF37:
+        case 0xFF38:
+        case 0xFF39:
+        case 0xFF3A:
+        case 0xFF3B:
+        case 0xFF3C:
+        case 0xFF3D:
+        case 0xFF3E:
+        case 0xFF3F:
             // Sound Registers
             break;
         case 0xFF40:
@@ -260,16 +285,13 @@ void MemoryMap::Store(u16 addr, u8 val)
             _video->LYC = val;
             break;
         case 0xFF47:
-            _io_BGP = val;
-            __debugbreak();
+            _video->WriteBGP(val);
             break;
         case 0xFF48:
-            _io_OBP0 = val;
-            __debugbreak();
+            _video->WriteOBP0(val);
             break;
         case 0xFF49:
-            _io_OBP1 = val;
-            __debugbreak();
+            _video->WriteOBP1(val);
             break;
         case 0xFF4A:
             _video->WY = val;

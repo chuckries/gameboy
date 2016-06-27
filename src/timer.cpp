@@ -18,10 +18,10 @@ void Timer::Init()
 {
     _cpu = _gameboy._cpu;
 
-    _div = 0;
-    _tima = 0;
-    _tma = 0;
-    _tac = 0;
+    WriteDIV();
+    WriteTIMA(0x00);
+    WriteTMA(0x00);
+    WriteTAC(0x00);
 }
 
 void Timer::UnInit()
@@ -31,7 +31,10 @@ void Timer::UnInit()
 
 void Timer::Step(u32 cycles)
 {
-
+    for (u32 i = 0; i < cycles; i++)
+    {
+        _div++;
+    }
 }
 
 u8 Timer::ReadDIV()
@@ -42,7 +45,6 @@ u8 Timer::ReadDIV()
 
 void Timer::WriteDIV()
 {
-    __debugbreak();
     _div = 0;
 }
 
@@ -54,7 +56,6 @@ u8 Timer::ReadTIMA()
 
 void Timer::WriteTIMA(u8 val)
 {
-    __debugbreak();
     _tima = val;
 }
 
@@ -66,7 +67,6 @@ u8 Timer::ReadTMA()
 
 void Timer::WriteTMA(u8 val)
 {
-    __debugbreak();
     _tma = val;
 }
 
@@ -78,6 +78,9 @@ u8 Timer::ReadTAC()
 
 void Timer::WriteTAC(u8 val)
 {
-    __debugbreak();
     _tac = val;
+    if ((_tac & (1 << 2)) != 0)
+    {
+        __debugbreak();
+    }
 }

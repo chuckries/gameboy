@@ -35,7 +35,4 @@ private:
     u8 _io_P1;      // FF00
     u8 _io_SB;      // FF01
     u8 _io_SC;      // FF02
-    u8 _io_BGP;     // FF47
-    u8 _io_OBP0;    // FF48
-    u8 _io_OBP1;    // FF49
 };

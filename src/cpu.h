@@ -63,10 +63,45 @@ private:
 
     // Registers
 private:
-#ifdef _SP
-#undef _SP // this is defined in some msft header
-#endif
-#define MAKE_REG(hi, lo) union { u16 W; struct { u8 lo; u8 hi; } B; } hi ## lo;
+    //#define MAKE_REG(hi, lo) union { u16 W; struct { u8 lo; u8 hi; } B; } hi ## lo;
+#define MAKE_REG(hi, lo) \
+struct hi ## lo \
+{ \
+    u8 lo; \
+    u8 hi; \
+    u16& operator *() \
+    { \
+        return (u16&)*this; \
+    } \
+    u16& operator =(u16 val) \
+    { \
+        **this = val; \
+        return **this; \
+    } \
+    u16& operator ++() \
+    { \
+        (**this)++; \
+        return **this; \
+    } \
+    u16 operator ++(int) \
+    { \
+        hi ## lo tmp(*this); \
+        operator++(); \
+        return *tmp; \
+    } \
+    u16& operator --() \
+    { \
+        (**this)--; \
+        return **this; \
+    } \
+    u16 operator --(int) \
+    { \
+        hi ## lo tmp(*this); \
+        operator--(); \
+        return *tmp; \
+    } \
+} hi ## lo;
+
     struct
     {
         MAKE_REG(A, F)
@@ -74,8 +109,8 @@ private:
         MAKE_REG(D, E)
         MAKE_REG(H, L)
     } _regs;
-    Pair _PC;
-    Pair _SP;
+    Word _PC;
+    Word _SP;
 
     // Operands
 private:
@@ -182,7 +217,7 @@ private:
 
         IndirectImmediate& FromRegC()
         {
-            Immediate = 0xFF00 | (u16)_cpu._regs.BC.B.C;
+            Immediate = 0xFF00 | (u16)_cpu._regs.BC.C;
             return *this;
         }
 
@@ -348,7 +383,8 @@ private:
     void PUSH();
     void POP();
     void ADD8();
-    void ADD16();
+    void ADDHL();
+    void ADDSP();
     void ADC();
     void SUB();
     void SBC();
@@ -392,6 +428,7 @@ private:
     void push_help(u16 val);
     u16 pop_help();
 
+    u16 add16_help(u16 left, u16 right);
     u8 sub_help();
 
     u8 rlc_help(u8 val);

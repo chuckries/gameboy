@@ -54,22 +54,22 @@ Cpu::Cpu(const Gameboy& gameboy)
     , _imm16(*this)
     , _indImm(*this)
     , _regs{ 0 }
-    , _regA(_regs.AF.B.A)
-    , _regB(_regs.BC.B.B)
-    , _regC(_regs.BC.B.C)
-    , _regD(_regs.DE.B.D)
-    , _regE(_regs.DE.B.E)
-    , _regF(_regs.AF.B.F)
-    , _regH(_regs.HL.B.H)
-    , _regL(_regs.HL.B.L)
-    , _regAF(_regs.AF.W)
-    , _regBC(_regs.BC.W)
-    , _regDE(_regs.DE.W)
-    , _regHL(_regs.HL.W)
-    , _regSP(_SP.W)
-    , _indBC(*this, _regs.BC.W)
-    , _indDE(*this, _regs.DE.W)
-    , _indHL(*this, _regs.HL.W)
+    , _regA(_regs.AF.A)
+    , _regB(_regs.BC.B)
+    , _regC(_regs.BC.C)
+    , _regD(_regs.DE.D)
+    , _regE(_regs.DE.E)
+    , _regF(_regs.AF.F)
+    , _regH(_regs.HL.H)
+    , _regL(_regs.HL.L)
+    , _regAF(*_regs.AF)
+    , _regBC(*_regs.BC)
+    , _regDE(*_regs.DE)
+    , _regHL(*_regs.HL)
+    , _regSP(*_SP)
+    , _indBC(*this, *_regs.BC)
+    , _indDE(*this, *_regs.DE)
+    , _indHL(*this, *_regs.HL)
     , _decode_r{ &_regB, &_regC, &_regD, &_regE, &_regH, &_regL, &_indHL, &_regA }
     , _decode_rp{ &_regBC, &_regDE, &_regHL, &_regSP }
     , _decode_rp2{ &_regBC, &_regDE, &_regHL, &_regAF }
@@ -92,12 +92,12 @@ void Cpu::Init()
 
     _cycles = 0;
 
-    _PC.W = 0x100;
-    _regs.AF.W = 0x01B0;
-    _regs.BC.W = 0x0013;
-    _regs.DE.W = 0x00D8;
-    _regs.HL.W = 0x014D;
-    _SP.W = 0xFFFE;
+    _PC = 0x100;
+    _regs.AF = 0x01B0;
+    _regs.BC = 0x0013;
+    _regs.DE = 0x00D8;
+    _regs.HL = 0x014D;
+    _SP = 0xFFFE;
 }
 
 void Cpu::UnInit()
@@ -124,23 +124,23 @@ u8 Cpu::Read8(u16 addr)
 
 u16 Cpu::Read16(u16 addr)
 {
-    Pair word;
-    word.B.L = Read8(addr);
-    word.B.H = Read8(addr + 1);
-    return word.W;
+    Word word;
+    word._0 = Read8(addr);
+    word._1 = Read8(addr + 1);
+    return *word;
 }
 
 u8 Cpu::Read8BumpPC()
 {
-    return Read8(_PC.W++);
+    return Read8(_PC++);
 }
 
 u16 Cpu::Read16BumpPC()
 {
-    Pair word;
-    word.B.L = Read8BumpPC();
-    word.B.H = Read8BumpPC();
-    return word.W;
+    Word word;
+    word._0 = Read8BumpPC();
+    word._1 = Read8BumpPC();
+    return *word;
 }
 
 void Cpu::Write8(u16 addr, u8 val)
@@ -165,10 +165,9 @@ void Cpu::Write8(u16 addr, u8 val)
 
 void Cpu::Write16(u16 addr, u16 val)
 {
-    Pair word;
-    word.W = val;
-    Write8(addr, word.B.L);
-    Write8(addr + 1, word.B.H);
+    Word word = val;
+    Write8(addr, word._0);
+    Write8(addr + 1, word._1);
 }
 
 u32 Cpu::Step()
@@ -196,29 +195,29 @@ bool Cpu::DoInterrupt()
         {
             // find the first bit set in both _interrupt_ie and _interrupt_if
             u8 i = 0;
-            while (((_interrupt_if & (1 << i)) == 0) && ((_interrupt_ie & (1 << i)) == 0))
+            while (((_interrupt_if & (1 << i)) == 0) || ((_interrupt_ie & (1 << i)) == 0))
             {
                 i++;
             }
 
-            push_help(_PC.W);
-            _PC.B.H = 0;
+            push_help(*_PC);
+            _PC._1 = 0;
             switch (i)
             {
             case 0:
-                _PC.B.L = 0x40;
+                _PC._0 = 0x40;
                 break;
             case 1:
-                _PC.B.L = 0x48;
+                _PC._0 = 0x48;
                 break;
             case 2:
-                _PC.B.L = 0x50;
+                _PC._0 = 0x50;
                 break;
             case 3:
-                _PC.B.L = 0x58;
+                _PC._0 = 0x58;
                 break;
             case 4:
-                _PC.B.L = 0x60;
+                _PC._0 = 0x60;
                 break;
             default:
                 __debugbreak();
@@ -241,17 +240,17 @@ bool Cpu::DoInterrupt()
 
 void Cpu::DMA(u8 val)
 {
-    Pair srcAddr;
-    srcAddr.B.H = val;
+    Word srcAddr;
+    srcAddr._1 = val;
 
-    Pair dstAddr;
-    dstAddr.B.H = 0xFE;
+    Word dstAddr;
+    dstAddr._1 = 0xFE;
 
     for (u8 i = 0; i < 0xA0; i++)
     {
-        srcAddr.B.L = i;
-        dstAddr.B.L = i;
-        Write8(dstAddr.W, Read8(dstAddr.W));
+        srcAddr._0 = i;
+        dstAddr._0 = i;
+        Write8(*dstAddr, Read8(*srcAddr));
     }
 }
 
@@ -316,8 +315,7 @@ void Cpu::Decode()
         case 0x39:
             // ADD HL,rp[p]
             _pOpSrc16 = _decode_rp[p];
-            _pOpDst16 = &_regHL;
-            ADD16();
+            ADDHL();
             break;
         case 0x02:
             // LD (BC),A
@@ -336,14 +334,14 @@ void Cpu::Decode()
             _pOpSrc8 = &_regA;
             _pOpDst8 = &_indHL;
             LD8();
-            _regs.HL.W++;
+            _regs.HL++;
             break;
         case 0x32:
             /// LDD (HL),A
             _pOpSrc8 = &_regA;
             _pOpDst8 = &_indHL;
             LD8();
-            _regs.HL.W--;
+            _regs.HL--;
             break;
         case 0x0A:
             // LD A,(BC)
@@ -362,14 +360,14 @@ void Cpu::Decode()
             _pOpSrc8 = &_indHL;
             _pOpDst8 = &_regA;
             LD8();
-            _regs.HL.W++;
+            _regs.HL++;
             break;
         case 0x3A:
             // LDD A,(HL)
             _pOpSrc8 = &_indHL;
             _pOpDst8 = &_regA;
             LD8();
-            _regs.HL.W--;
+            _regs.HL--;
             break;
         case 0x03:
         case 0x13:
@@ -620,7 +618,8 @@ void Cpu::Decode()
             break;
         case 0xE8:
             // ADD SP,n
-            __debugbreak();
+            _pOpSrc8 = &_imm8.FromPC();
+            ADDSP();
             break;
         case 0xF0:
             // LD A,($FF00+n)
@@ -768,7 +767,8 @@ void Cpu::Decode()
         {
         case 0x00:
             // rot[y] r[z]
-            __debugbreak();
+            _pOpRW8 = _decode_r[z];
+            (*this.*_decode_rot[y])();
             break;
         case 0x40:
             // BIT y,r[z]
@@ -802,18 +802,18 @@ void Cpu::Decode()
 // Flag Operations
 void Cpu::ResetFlags()
 {
-    _regs.AF.B.F = 0;
+    _regs.AF.F = 0;
 }
 
 void Cpu::SetFlag(u8 flag, bool set)
 {
     if (set)
     {
-        _regs.AF.B.F |= flag;
+        _regs.AF.F |= flag;
     }
     else
     {
-        _regs.AF.B.F &= ~flag;
+        _regs.AF.F &= ~flag;
     }
 }
 
@@ -864,7 +864,7 @@ void Cpu::ResetC()
 
 bool Cpu::CondFlag(u8 flag)
 {
-    return (_regs.AF.B.F & flag) != 0;
+    return (_regs.AF.F & flag) != 0;
 }
 
 bool Cpu::CondNZ()
@@ -918,12 +918,30 @@ void Cpu::POP()
 
 void Cpu::ADD8()
 {
-    __debugbreak();
+    Word word;
+    u8 left = _regs.AF.A;
+    u8 right = _pOpSrc8->Read();
+    word = left + right;
+    _regs.AF.A = word._0;
+    SetZ(word._0);
+    SetC(word._1 != 0);
+    ResetN();
+
+    left &= 0x0F;
+    right &= 0x0F;
+    u8 val = left + right;
+    SetH((val & 0xF0) != 0);
 }
 
-void Cpu::ADD16()
+void Cpu::ADDHL()
 {
-    __debugbreak();
+    _regs.HL = add16_help(*_regs.HL, _pOpSrc16->Read());
+}
+
+void Cpu::ADDSP()
+{
+    _SP = add16_help(*_SP, (u16)(i16)(i8)(_pOpSrc8->Read()));
+    ResetZ();
 }
 
 void Cpu::ADC()
@@ -933,7 +951,7 @@ void Cpu::ADC()
 
 void Cpu::SUB()
 {
-    _regs.AF.B.A = sub_help();
+    _regs.AF.A = sub_help();
 }
 
 void Cpu::SBC()
@@ -943,8 +961,8 @@ void Cpu::SBC()
 
 void Cpu::AND()
 {
-    _regs.AF.B.A = _regs.AF.B.A & _pOpSrc8->Read();
-    SetZ(_regs.AF.B.A);
+    _regs.AF.A = _regs.AF.A & _pOpSrc8->Read();
+    SetZ(_regs.AF.A);
     ResetN();
     SetH();
     ResetC();
@@ -952,16 +970,16 @@ void Cpu::AND()
 
 void Cpu::XOR()
 {
-    _regs.AF.B.A ^= _pOpSrc8->Read();
+    _regs.AF.A ^= _pOpSrc8->Read();
     ResetFlags();
-    SetZ(_regs.AF.B.A);
+    SetZ(_regs.AF.A);
 }
 
 void Cpu::OR()
 {
-    _regs.AF.B.A |= _pOpSrc8->Read();
+    _regs.AF.A |= _pOpSrc8->Read();
     ResetFlags();
-    SetZ(_regs.AF.B.A);
+    SetZ(_regs.AF.A);
 }
 
 void Cpu::CP()
@@ -1007,7 +1025,13 @@ void Cpu::DEC16()
 
 void Cpu::SWAP()
 {
-    __debugbreak();
+    u8 oldVal = _pOpRW8->Read();
+    u8 newVal = 0;
+    newVal |= ((oldVal >> 4) & 0x0F);
+    newVal |= ((oldVal << 4) & 0xF0);
+    _pOpRW8->Write(newVal);
+    ResetFlags();
+    SetZ(newVal);
 }
 
 void Cpu::DAA()
@@ -1017,7 +1041,9 @@ void Cpu::DAA()
 
 void Cpu::CPL()
 {
-    __debugbreak();
+    _regs.AF.A = ~_regs.AF.A;
+    SetH();
+    SetN();
 }
 
 void Cpu::HALT()
@@ -1043,25 +1069,25 @@ void Cpu::EI()
 
 void Cpu::RLCA()
 {
-    _regs.AF.B.A = rlc_help(_regs.AF.B.A);
+    _regs.AF.A = rlc_help(_regs.AF.A);
     ResetZ();
 }
 
 void Cpu::RLA()
 {
-    _regs.AF.B.A = rl_help(_regs.AF.B.A);
+    _regs.AF.A = rl_help(_regs.AF.A);
     ResetZ();
 }
 
 void Cpu::RRCA()
 {
-    _regs.AF.B.A = rrc_help(_regs.AF.B.A);
+    _regs.AF.A = rrc_help(_regs.AF.A);
     ResetZ();
 }
 
 void Cpu::RRA()
 {
-    _regs.AF.B.A = rr_help(_regs.AF.B.A);
+    _regs.AF.A = rr_help(_regs.AF.A);
     ResetZ();
 }
 
@@ -1137,7 +1163,7 @@ void Cpu::JP(bool condition)
     u16 newPC = _pOpSrc16->Read();
     if (condition)
     {
-        _PC.W = newPC;
+        _PC = newPC;
     }
 }
 
@@ -1146,9 +1172,9 @@ void Cpu::JR(bool condition)
     i8 disp = (i8)Read8BumpPC();
     if (condition)
     {
-        i16 oldPC = (i16)_PC.W;
+        i16 oldPC = (i16)*_PC;
         i16 newPC = oldPC + (i16)(disp);
-        _PC.W = (u16)newPC;
+        _PC = (u16)newPC;
     }
 }
 
@@ -1157,23 +1183,23 @@ void Cpu::CALL(bool condition)
     u16 addr = _pOpSrc16->Read();
     if (condition)
     {
-        push_help(_PC.W);
-        _PC.W = addr;
+        push_help(*_PC);
+        _PC = addr;
     }
 }
 
 void Cpu::RST(u8 val)
 {
-    push_help(_PC.W);
-    _PC.B.H = 0;
-    _PC.B.L = val;
+    push_help(*_PC);
+    _PC._0 = val;
+    _PC._1 = 0;
 }
 
 void Cpu::RET(bool cond)
 {
     if (cond)
     {
-        _PC.W = pop_help();
+        _PC = pop_help();
     }
 }
 
@@ -1185,34 +1211,50 @@ void Cpu::RETI()
 
 void Cpu::push_help(u16 val)
 {
-    _SP.W -= 2;
-    Write16(_SP.W, val);
+    _SP -= 2;
+    Write16(*_SP, val);
 }
 
 u16 Cpu::pop_help()
 {
-    u16 val = Read16(_SP.W);
-    _SP.W += 2;
+    u16 val = Read16(*_SP);
+    _SP += 2;
     return val;
+}
+
+u16 Cpu::add16_help(u16 left, u16 right)
+{
+    DWord dword;
+    dword = left + right;
+
+    ResetN();
+    SetC(dword.W._1 != 0);
+
+    left &= 0x0FFF;
+    right &= 0x0FFF;
+    u16 val = left + right;
+    SetH((val & 0xF000) != 0);
+
+    return dword.W._0;
 }
 
 u8 Cpu::sub_help()
 {
-    Pair word;
-    u8 left = _regs.AF.B.A;
+    Word word;
+    u8 left = _regs.AF.A;
     u8 right = _pOpSrc8->Read();
 
-    word.W = left - right;
-    SetZ(word.B.L);
+    word = left - right;
+    SetZ(word._0);
     SetN();
-    SetC(word.B.H != 0);
+    SetC(word._1 != 0);
 
     left &= 0x0F;
     right &= 0x0F;
     left -= right;
     SetH((left & 0xF0) != 0);
 
-    return word.B.L;
+    return word._0;
 }
 
 u8 Cpu::rlc_help(u8 val)
@@ -1267,25 +1309,25 @@ bool Cpu::bit_help(u8 val, u8 bitNum)
 void Cpu::Trace()
 {
     Disassembler::Instruction instr;
-    _disassembler->Disassemble(_PC.W, instr);
+    _disassembler->Disassemble(*_PC, instr);
 
     printf("%04X %-14s %-18s A:%02X B:%02X C:%02X D:%02X E:%02X F:%02X H:%02X L:%02X AF:%04X BC:%04X DE:%04X HL:%04X SP:%04X\n",
-        _PC.W,
+        *_PC,
         instr.GetFormattedCodeBytes().c_str(),
         instr.GetDisassemblyString().c_str(),
-        _regs.AF.B.A,
-        _regs.BC.B.B,
-        _regs.BC.B.C,
-        _regs.DE.B.D,
-        _regs.DE.B.E,
-        _regs.AF.B.F,
-        _regs.HL.B.H,
-        _regs.HL.B.L,
-        _regs.AF.W,
-        _regs.BC.W,
-        _regs.DE.W,
-        _regs.HL.W,
-        _SP.W
+        _regs.AF.A,
+        _regs.BC.B,
+        _regs.BC.C,
+        _regs.DE.D,
+        _regs.DE.E,
+        _regs.AF.F,
+        _regs.HL.H,
+        _regs.HL.L,
+        *_regs.AF,
+        *_regs.BC,
+        *_regs.DE,
+        *_regs.HL,
+        *_SP
         );
 }
 #else

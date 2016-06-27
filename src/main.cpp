@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "gameboy.h"
+#include "SdlGfx.h"
 
 int main(int argc, const char* argv[])
 {
@@ -14,9 +15,13 @@ int main(int argc, const char* argv[])
     gameboy.Init();
     gameboy.LoadRom(argv[1]);
 
+    SdlGfx gfx;
+    u8 gbScreen[160 * 144];
+
     for (;;)
     {
-        gameboy.DoFrame();
+        gameboy.DoFrame(gbScreen);
+        gfx.Blit(gbScreen);
     }
 
     gameboy.UnInit();

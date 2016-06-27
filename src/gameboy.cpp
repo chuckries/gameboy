@@ -43,13 +43,14 @@ void Gameboy::LoadRom(const char* romPath)
     _cart->LoadRom(romPath);
 }
 
-void Gameboy::DoFrame()
+void Gameboy::DoFrame(u8 gbScreen[])
 {
     u32 cycles = 0;
-    for (;;)
+    bool vblank = false;
+    do
     {
         cycles = _cpu->Step();
-        _video->Step(cycles);
+        vblank = _video->Step(cycles, gbScreen);
         _timer->Step(cycles);
-    }
+    } while (!vblank);
 }

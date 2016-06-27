@@ -533,11 +533,10 @@ u8 Disassembler::Read8(u16 addr)
 
 u16 Disassembler::Read16(u16 addr)
 {
-    Pair word;
-    word.W = 0;
-    word.B.L = Read8(addr);
-    word.B.H = Read8(addr + 1);
-    return word.W;
+    Word word;
+    word._0 = Read8(addr);
+    word._1 = Read8(addr + 1);
+    return *word;
 }
 
 u8 Disassembler::Read8PC()
