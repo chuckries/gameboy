@@ -1076,69 +1076,38 @@ void Cpu::SWAP()
 
 void Cpu::DAA()
 {
-    //int a = _regs.AF.A;
-
-    //if (!CondFlag(N_FLAG))
-    //{
-    //    if (CondFlag(H_FLAG) || (a & 0x0F) >= 0x0A)
-    //    {
-    //        a += 0x06;
-    //    }
-
-    //    if (CondC() || a >= 0xA0)
-    //    {
-    //        a += 0x60;
-    //    }
-    //}
-    //else
-    //{
-    //    if (CondFlag(H_FLAG))
-    //    {
-    //        a = (a - 0x06) & 0xFF;
-    //    }
-
-    //    if (CondC())
-    //    {
-    //        a -= 0x60;
-    //    }
-    //}
-
-    //_regs.AF.A = a & 0xFF;
-
-    //ResetH();
-    //SetZ(_regs.AF.A);
-    //SetC((a & 0xFF00) != 0);
-
     int a = _regs.AF.A;
 
     if (!CondFlag(N_FLAG))
     {
-        if (CondFlag(H_FLAG) || (a & 0xF) > 9)
+        if (CondFlag(H_FLAG) || ((a & 0x0F) >= 0x0A))
+        {
             a += 0x06;
+        }
 
-        if (CondC() || a > 0x9F)
+        if (CondC() || (a >= 0xA0))
+        {
             a += 0x60;
+        }
     }
     else
     {
         if (CondFlag(H_FLAG))
-            a = (a - 6) & 0xFF;
+        {
+            a = (a - 0x06) & 0xFF;
+        }
 
         if (CondC())
+        {
             a -= 0x60;
+        }
     }
 
+    _regs.AF.A = a & 0xFF;
+
     ResetH();
-    ResetZ();
-
-    SetC((a & 0x100) == 0x100);
-
-    a &= 0xFF;
-
-    SetZ(a);
-
-    _regs.AF.A = (u8)a;
-
+    SetZ(_regs.AF.A);
+    SetC(((a & 0xFF00) != 0) || CondC());
 }
 
 void Cpu::CPL()
@@ -1172,59 +1141,50 @@ void Cpu::EI()
 void Cpu::RLCA()
 {
     _regs.AF.A = rlc_help(_regs.AF.A);
-    ResetZ();
 }
 
 void Cpu::RLA()
 {
     _regs.AF.A = rl_help(_regs.AF.A);
-    ResetZ();
 }
 
 void Cpu::RRCA()
 {
     _regs.AF.A = rrc_help(_regs.AF.A);
-    ResetZ();
 }
 
 void Cpu::RRA()
 {
     _regs.AF.A = rr_help(_regs.AF.A);
-    ResetZ();
 }
 
 void Cpu::RLC()
 {
     u8 val = rlc_help(_pOpRW8->Read());
-    SetZ(val);
     _pOpRW8->Write(val);
 }
 
 void Cpu::RL()
 {
     u8 val = rl_help(_pOpRW8->Read());
-    SetZ(val);
     _pOpRW8->Write(val);
 }
 
 void Cpu::RRC()
 {
     u8 val = rrc_help(_pOpRW8->Read());
-    SetZ(val);
     _pOpRW8->Write(val);
 }
 
 void Cpu::RR()
 {
     u8 val = rr_help(_pOpRW8->Read());
-    SetZ(val);
     _pOpRW8->Write(val);
 }
 
 void Cpu::SLA()
 {
     u8 val = shift_left_help(_pOpRW8->Read(), false);
-    SetZ(val);
     _pOpRW8->Write(val);
 }
 
@@ -1232,14 +1192,12 @@ void Cpu::SRA()
 {
     u8 val = _pOpRW8->Read();
     val = shift_right_help(val, bit_help(val, 7));
-    SetZ(val);
     _pOpRW8->Write(val);
 }
 
 void Cpu::SRL()
 {
     u8 val = shift_right_help(_pOpRW8->Read(), false);
-    SetZ(val);
     _pOpRW8->Write(val);
 }
 
@@ -1412,6 +1370,7 @@ u8 Cpu::shift_left_help(u8 val, bool lsb)
     SetC(newCarry);
     ResetH();
     ResetN();
+    SetZ(val);
     return val;
 }
 
@@ -1423,6 +1382,7 @@ u8 Cpu::shift_right_help(u8 val, bool msb)
     SetC(newCarry);
     ResetH();
     ResetN();
+    SetZ(val);
     return val;
 }
 

@@ -30,7 +30,7 @@ u8 Cart::Load(u16 addr)
 
 void Cart::Store(u16 addr, u8 val)
 {
-    __debugbreak();
+    //__debugbreak();
 }
 
 void Cart::LoadRom(const char* romPath)
