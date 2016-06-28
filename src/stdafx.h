@@ -16,59 +16,68 @@ typedef std::int16_t i16;
 typedef std::int32_t i32;
 typedef std::int64_t i64;
 
-struct Word
+template <class T>
+struct Bytes
 {
-    u8 _0;
-    u8 _1;
-
-    u16& operator *()
+    T& operator *()
     {
-        return (u16&)*this;
+        return (T&)*this;
     }
 
-    u16& operator =(u16 val)
+    T& operator =(T val)
     {
         **this = val;
         return **this;
     }
 
-    u16& operator ++()
+    T& operator ++()
     {
         (**this)++;
         return **this;
     }
 
-    u16 operator ++(int)
+    T operator ++(int)
     {
-        Word tmp(*this);
+        T tmp = **this;
         operator++();
-        return *tmp;
+        return tmp;
     }
 
-    u16& operator --()
+    T& operator --()
     {
         (**this)--;
         return **this;
     }
 
-    u16 operator --(int)
+    T operator --(int)
     {
-        Word tmp(*this);
+        T tmp = **this;
         operator--();
-        return *tmp;
+        return tmp;
     }
 
-    u16& operator +=(u16 val)
+    T& operator +(const Bytes& lhs)
+    {
+        return **this + **lhs;
+    }
+
+    T& operator +=(T val)
     {
         (**this) += val;
         return **this;
     }
 
-    u16& operator -=(u16 val)
+    T& operator -=(T val)
     {
         (**this) -= val;
         return **this;
     }
+};
+
+struct Word : public Bytes<u16>
+{
+    u8 _0;
+    u8 _1;
 
     Word()
     {
@@ -117,10 +126,24 @@ union DWord
         return **this;
     }
 
+    u32 operator ++(int)
+    {
+        u32 tmp = **this;
+        operator++();
+        return tmp;
+    }
+
     u32& operator --()
     {
         (**this)--;
         return **this;
+    }
+
+    u32 operator --(int)
+    {
+        u32 tmp = **this;
+        operator--();
+        return tmp;
     }
 
     u32& operator +=(u32 val)

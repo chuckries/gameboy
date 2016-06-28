@@ -4,7 +4,7 @@
 
 SdlGfx::SdlGfx()
 {
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
+    SDL_InitSubSystem(SDL_INIT_VIDEO);
     _window = SDL_CreateWindow(
         "GameBoy",
         SDL_WINDOWPOS_CENTERED,
@@ -31,19 +31,12 @@ SdlGfx::SdlGfx()
 
 SdlGfx::~SdlGfx()
 {
-    SDL_Quit();
+    SDL_QuitSubSystem(SDL_INIT_VIDEO);
 }
 
 void SdlGfx::Blit(u8 gbScreen[])
 {
-    SDL_Event sdlEvent;
-    while (SDL_PollEvent(&sdlEvent))
-    {
-
-    }
-
-
-    u8 palette[4] = { 0xFF, 0xA9, 0xD3, 0x00 };
+    u8 palette[4] = { 0xFF, 0xD3, 0xA9, 0x00 };
     u8 screen[160 * 144 * 4];
 
     for (int i = 0; i < 160 * 144; i++)

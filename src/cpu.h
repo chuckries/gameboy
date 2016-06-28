@@ -63,7 +63,6 @@ private:
 
     // Registers
 private:
-    //#define MAKE_REG(hi, lo) union { u16 W; struct { u8 lo; u8 hi; } B; } hi ## lo;
 #define MAKE_REG(hi, lo) \
 struct hi ## lo \
 { \
@@ -325,7 +324,6 @@ private:
     Register8 _regC;
     Register8 _regD;
     Register8 _regE;
-    Register8 _regF;
     Register8 _regH;
     Register8 _regL;
 
@@ -429,6 +427,7 @@ private:
     u16 pop_help();
 
     u16 add16_help(u16 left, u16 right);
+    u16 addsp_help();
     u8 sub_help();
 
     u8 rlc_help(u8 val);
@@ -441,4 +440,8 @@ private:
     u8 shift_right_help(u8 val, bool msb);
 
     bool bit_help(u8 val, u8 bitNum);
+
+#ifdef TRACE
+    FILE* _traceLog;
+#endif
 };

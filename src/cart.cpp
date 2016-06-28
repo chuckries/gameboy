@@ -25,12 +25,12 @@ void Cart::UnInit()
 
 u8 Cart::Load(u16 addr)
 {
-    return _rom[addr];
+    return _rom[addr & 0x7FFF];
 }
 
 void Cart::Store(u16 addr, u8 val)
 {
-
+    __debugbreak();
 }
 
 void Cart::LoadRom(const char* romPath)

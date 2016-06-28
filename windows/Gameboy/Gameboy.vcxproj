@@ -34,6 +34,7 @@
     <ClCompile Include="..\..\src\main.cpp" />
     <ClCompile Include="..\..\src\memory.cpp" />
     <ClCompile Include="..\..\src\SdlGfx.cpp" />
+    <ClCompile Include="..\..\src\SdlInput.cpp" />
     <ClCompile Include="..\..\src\stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Trace|Win32'">Create</PrecompiledHeader>
@@ -52,6 +53,7 @@
     <ClInclude Include="..\..\src\gameboy.h" />
     <ClInclude Include="..\..\src\memory.h" />
     <ClInclude Include="..\..\src\SdlGfx.h" />
+    <ClInclude Include="..\..\src\SdlInput.h" />
     <ClInclude Include="..\..\src\stdafx.h" />
     <ClInclude Include="..\..\src\timer.h" />
     <ClInclude Include="..\..\src\video.h" />

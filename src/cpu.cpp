@@ -59,7 +59,6 @@ Cpu::Cpu(const Gameboy& gameboy)
     , _regC(_regs.BC.C)
     , _regD(_regs.DE.D)
     , _regE(_regs.DE.E)
-    , _regF(_regs.AF.F)
     , _regH(_regs.HL.H)
     , _regL(_regs.HL.L)
     , _regAF(*_regs.AF)
@@ -77,12 +76,16 @@ Cpu::Cpu(const Gameboy& gameboy)
     , _decode_alu{ &Cpu::ADD8, &Cpu::ADC, &Cpu::SUB, &Cpu::SBC, &Cpu::AND, &Cpu::XOR, &Cpu::OR, &Cpu::CP }
     , _decode_rot{ &Cpu::RLC, &Cpu::RRC, &Cpu::RL, &Cpu::RR, &Cpu::SLA, &Cpu::SRA, &Cpu::SWAP, &Cpu::SRL }
 {
-
+#ifdef TRACE
+    fopen_s(&_traceLog, "trace.log", "w");
+#endif // TRACE
 }
 
 Cpu::~Cpu()
 {
-
+#ifdef TRACE
+    fclose(_traceLog);
+#endif // TRACE
 }
 
 void Cpu::Init()
@@ -279,6 +282,10 @@ void Cpu::Decode()
         {
         case 0x00:
             // NOP
+            break;
+        case 0x08:
+            // LD (nn),SP
+            Write16(Read16BumpPC(), *_SP);
             break;
         case 0x010:
             // STOP
@@ -629,7 +636,8 @@ void Cpu::Decode()
             break;
         case 0xF8:
             // LDHL
-            __debugbreak();
+            _pOpSrc8 = &_imm8.FromPC();
+            LDHL();
             break;
         case 0xC1:
         case 0xD1:
@@ -903,7 +911,7 @@ void Cpu::LD16()
 
 void Cpu::LDHL()
 {
-    __debugbreak();
+    _regs.HL = addsp_help();
 }
 
 void Cpu::PUSH()
@@ -914,6 +922,7 @@ void Cpu::PUSH()
 void Cpu::POP()
 {
     _pOpDst16->Write(pop_help());
+    _regs.AF.F &= 0xF0; // just in case we pop in to AF, the lower nibble of F is always 0
 }
 
 void Cpu::ADD8()
@@ -923,13 +932,14 @@ void Cpu::ADD8()
     u8 right = _pOpSrc8->Read();
     word = left + right;
     _regs.AF.A = word._0;
-    SetZ(word._0);
-    SetC(word._1 != 0);
-    ResetN();
 
     left &= 0x0F;
     right &= 0x0F;
     u8 val = left + right;
+
+    SetZ(word._0);
+    SetC(word._1 != 0);
+    ResetN();
     SetH((val & 0xF0) != 0);
 }
 
@@ -940,13 +950,27 @@ void Cpu::ADDHL()
 
 void Cpu::ADDSP()
 {
-    _SP = add16_help(*_SP, (u16)(i16)(i8)(_pOpSrc8->Read()));
-    ResetZ();
+    _SP = addsp_help();
 }
 
 void Cpu::ADC()
 {
-    __debugbreak();
+    Word word;
+    u8 left = _regs.AF.A;
+    u8 right = _pOpSrc8->Read();
+    word = left + right;
+    if (CondC()) word++;
+    _regs.AF.A = word._0;
+
+    left &= 0x0F;
+    right &= 0x0F;
+    u8 val = left + right;
+    if (CondC()) val++;
+
+    SetZ(word._0);
+    SetC(word._1 != 0);
+    ResetN();
+    SetH((val & 0xF0) != 0);
 }
 
 void Cpu::SUB()
@@ -956,7 +980,23 @@ void Cpu::SUB()
 
 void Cpu::SBC()
 {
-    __debugbreak();
+    Word word;
+    u8 left = _regs.AF.A;
+    u8 right = _pOpSrc8->Read();
+    word = left - right;
+    if (CondC()) word--;
+    _regs.AF.A = word._0;
+
+    left &= 0x0F;
+    right &= 0x0F;
+    u8 val = left - right;
+    if (CondC()) val--;
+
+    SetZ(word._0);
+
+    SetC(word._1 != 0);
+    SetN();
+    SetH((val & 0xF0) != 0);
 }
 
 void Cpu::AND()
@@ -1036,7 +1076,69 @@ void Cpu::SWAP()
 
 void Cpu::DAA()
 {
-    __debugbreak();
+    //int a = _regs.AF.A;
+
+    //if (!CondFlag(N_FLAG))
+    //{
+    //    if (CondFlag(H_FLAG) || (a & 0x0F) >= 0x0A)
+    //    {
+    //        a += 0x06;
+    //    }
+
+    //    if (CondC() || a >= 0xA0)
+    //    {
+    //        a += 0x60;
+    //    }
+    //}
+    //else
+    //{
+    //    if (CondFlag(H_FLAG))
+    //    {
+    //        a = (a - 0x06) & 0xFF;
+    //    }
+
+    //    if (CondC())
+    //    {
+    //        a -= 0x60;
+    //    }
+    //}
+
+    //_regs.AF.A = a & 0xFF;
+
+    //ResetH();
+    //SetZ(_regs.AF.A);
+    //SetC((a & 0xFF00) != 0);
+
+    int a = _regs.AF.A;
+
+    if (!CondFlag(N_FLAG))
+    {
+        if (CondFlag(H_FLAG) || (a & 0xF) > 9)
+            a += 0x06;
+
+        if (CondC() || a > 0x9F)
+            a += 0x60;
+    }
+    else
+    {
+        if (CondFlag(H_FLAG))
+            a = (a - 6) & 0xFF;
+
+        if (CondC())
+            a -= 0x60;
+    }
+
+    ResetH();
+    ResetZ();
+
+    SetC((a & 0x100) == 0x100);
+
+    a &= 0xFF;
+
+    SetZ(a);
+
+    _regs.AF.A = (u8)a;
+
 }
 
 void Cpu::CPL()
@@ -1145,7 +1247,7 @@ void Cpu::BIT(u8 val)
 {
     ResetN();
     SetH();
-    SetZ(!bit_help(_pOpSrc8->Read(), val));
+    SetZ(bit_help(_pOpSrc8->Read(), val));
 }
 
 void Cpu::SET(u8 val)
@@ -1238,6 +1340,30 @@ u16 Cpu::add16_help(u16 left, u16 right)
     return dword.W._0;
 }
 
+u16 Cpu::addsp_help()
+{
+    u8 operand = _pOpSrc8->Read();
+    i16 signedOperand = (i16)(i8)operand;
+
+    u8 left = _SP._0;
+    u8 right = operand;
+
+    u16 result = (u16)((i16)(*_SP) + signedOperand);
+
+    Word w = left + right;
+    SetC(w._1 != 0);
+
+    left &= 0x0F;
+    right &= 0x0F;
+    u8 val = left + right;
+    SetH((val & 0xF0) != 0);
+
+    ResetN();
+    ResetZ();
+
+    return result;
+}
+
 u8 Cpu::sub_help()
 {
     Word word;
@@ -1269,7 +1395,7 @@ u8 Cpu::rl_help(u8 val)
 
 u8 Cpu::rrc_help(u8 val)
 {
-    return shift_right_help(val, bit_help(val, 1));
+    return shift_right_help(val, bit_help(val, 0));
 }
 
 u8 Cpu::rr_help(u8 val)
@@ -1291,7 +1417,7 @@ u8 Cpu::shift_left_help(u8 val, bool lsb)
 
 u8 Cpu::shift_right_help(u8 val, bool msb)
 {
-    bool newCarry = bit_help(val, 1);
+    bool newCarry = bit_help(val, 0);
     val >>= 1;
     val |= (msb ? (1 << 7) : 0);
     SetC(newCarry);
@@ -1311,7 +1437,9 @@ void Cpu::Trace()
     Disassembler::Instruction instr;
     _disassembler->Disassemble(*_PC, instr);
 
-    printf("%04X %-14s %-18s A:%02X B:%02X C:%02X D:%02X E:%02X F:%02X H:%02X L:%02X AF:%04X BC:%04X DE:%04X HL:%04X SP:%04X\n",
+    printf(
+        //_traceLog,
+        "%04X %-14s %-18s A:%02X B:%02X C:%02X D:%02X E:%02X F:%02X H:%02X L:%02X AF:%04X BC:%04X DE:%04X HL:%04X SP:%04X\n",
         *_PC,
         instr.GetFormattedCodeBytes().c_str(),
         instr.GetDisassemblyString().c_str(),

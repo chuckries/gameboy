@@ -72,6 +72,12 @@ void Disassembler::Disassemble(u16 pc, Disassembler::Instruction& instr)
             // NOP
             instr._ss << "NOP";
             break;
+        case 0x08:
+            // LD (nn),SP
+            instr._codeBytes.push_back(Read8(_pc));
+            instr._codeBytes.push_back(Read8(_pc + 1));
+            instr._ss << "LD (" << Display16BumpPC() << "),SP";
+            break;
         case 0x010:
             // STOP
             instr._codeBytes.push_back(Read8PC()); // 0x00 byte

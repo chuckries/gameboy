@@ -189,7 +189,9 @@ void Video::DoScanline(u8 gbScreen[])
         bgTileDataAddr = 0x8000;
     }
 
-    bgTileMapAddr += ((_ly / 8) * 32);
+    u8 y = _ly + SCY;
+
+    bgTileMapAddr += ((y / 8) * 32);
     for (u8 x = 0; x < 20; x++)
     {
         i16 tileNum = 0;
@@ -203,7 +205,7 @@ void Video::DoScanline(u8 gbScreen[])
         }
 
         u16 tileAddr = bgTileDataAddr + (tileNum * 16);
-        tileAddr += (_ly % 8) * 2;
+        tileAddr += (y % 8) * 2;
 
         u8 tileLo = _vram[tileAddr & 0x1fff];
         u8 tileHi = _vram[(tileAddr & 0x1fff) + 1];
@@ -216,56 +218,4 @@ void Video::DoScanline(u8 gbScreen[])
             gbScreen[screenIndex] = color;
         }
     }
-    //u8* bgTileMapAddr = nullptr;
-    //u8* bgTileDataAddr = nullptr;
-    //bool indexIsSigned = false;
-
-    //// tile map
-    //if ((_lcdc & (1 << 3)) == 0)
-    //{
-    //    bgTileMapAddr = &_vram[0x9800 & 0x1FFF];
-    //}
-    //else
-    //{
-    //    bgTileMapAddr = &_vram[0x9C00 & 0x1FFF];
-    //}
-
-    //// tile data
-    //if ((_lcdc & (1 << 4)) == 0)
-    //{
-    //    bgTileDataAddr = &_vram[0x8800 & 0x1FFF];
-    //    indexIsSigned = true;
-    //}
-    //else
-    //{
-    //    bgTileDataAddr = &_vram[0x8000 & 0x1FFF];
-    //}
-
-    //bgTileMapAddr += (_ly * 32);
-    //for (u8 x = 0; x < 20; x++)
-    //{
-    //    int tileNum = 0;
-    //    if (indexIsSigned)
-    //    {
-    //        tileNum = (i32)(i8)*bgTileMapAddr;
-    //    }
-    //    else
-    //    {
-    //        tileNum = (i32)(u32)*bgTileMapAddr;
-    //    }
-
-    //    u8* tileAddr = &bgTileDataAddr[tileNum * 16];
-
-    //    u8 tileLo = tileAddr[(_ly % 8) * 2];
-    //    u8 tileHi = tileAddr[((_ly % 8) * 2) + 1];
-
-    //    for (u8 tileX = 0; tileX < 8; tileX++)
-    //    {
-    //        //gbScreen[(_ly * 160) + (x * 8) + tileX] = ((tileLo >> (7 - tileX)) & 0x01) | (((tileHi >> (7 - tileX)) & 0x01) << 1);
-    //        u8 paletteNum = ((tileLo >> (7 - tileX)) & 0x01) | (((tileHi >> (7 - tileX)) & 0x01) << 1);
-    //        gbScreen[(_ly * 160) + (x * 8) + tileX] = (_bgp >> (paletteNum * 2)) & 0x03;
-    //    }
-
-    //    bgTileMapAddr++;
-    //}
 }
