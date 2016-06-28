@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include <SDL.h>
 #include "SdlGfx.h"
+#include <chrono>
 
 SdlGfx::SdlGfx()
 {
@@ -51,4 +52,13 @@ void SdlGfx::Blit(u8 gbScreen[])
     SDL_RenderClear(_renderer);
     SDL_RenderCopy(_renderer, _texture, NULL, NULL);
     SDL_RenderPresent(_renderer);
+
+    std::chrono::time_point<std::chrono::steady_clock> now;
+    long long duration;
+    do
+    {
+        now = std::chrono::high_resolution_clock::now();
+        duration = std::chrono::duration_cast<std::chrono::nanoseconds>(now - _lastDrawTime).count();
+    } while (duration < 16666667); // 60 fps
+    _lastDrawTime = now;
 }
