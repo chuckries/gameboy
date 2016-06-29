@@ -1,5 +1,7 @@
 #pragma once
 
+#include <SDL.h>
+
 #include <iostream>
 #include <memory>
 #include <vector>

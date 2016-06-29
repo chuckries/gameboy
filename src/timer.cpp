@@ -39,7 +39,7 @@ void Timer::Step(u32 cycles)
 
 u8 Timer::ReadDIV()
 {
-    __debugbreak();
+    //__debugbreak();
     return _div;
 }
 

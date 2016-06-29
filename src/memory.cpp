@@ -4,6 +4,7 @@
 #include "cart.h"
 #include "video.h"
 #include "timer.h"
+#include "input.h"
 
 MemoryMap::MemoryMap(const Gameboy& gameboy)
     : _gameboy(gameboy)
@@ -21,6 +22,7 @@ void MemoryMap::Init()
     _cart = _gameboy._cart;
     _video = _gameboy._video;
     _timer = _gameboy._timer;
+    _input = _gameboy._input;
 
     _wram.resize(0x2000, 0);
     _hram.resize(0x80, 0);
@@ -31,6 +33,7 @@ void MemoryMap::UnInit()
     _cart = nullptr;
     _video = nullptr;
     _timer = nullptr;
+    _input = nullptr;
 }
 
 u8 MemoryMap::Load(u16 addr)
@@ -73,7 +76,7 @@ u8 MemoryMap::Load(u16 addr)
         switch (addr)
         {
         case 0xFF00:
-            return _io_P1 | 0b11001111;
+            return _input->Load();
         case 0xFF01:
             __debugbreak();
             return _io_SB;
@@ -210,7 +213,7 @@ void MemoryMap::Store(u16 addr, u8 val)
         switch (addr)
         {
         case 0xFF00:
-            _io_P1 = val & 0b00110000;
+            _input->Store(val);
             break;
         case 0xFF01:
             _io_SB = val;

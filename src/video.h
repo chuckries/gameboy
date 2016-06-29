@@ -25,7 +25,7 @@ private:
 
         bool AboveBG()
         {
-            return ((_attributes & (1 << 7)) != 0);
+            return ((_attributes & (1 << 7)) == 0);
         }
 
         bool FlipY()

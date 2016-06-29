@@ -95,12 +95,25 @@ void Cpu::Init()
 
     _cycles = 0;
 
+    _interrupt_ime = true;
+    _interrupt_ime_lag = true;
+
+    _interrupt_ie = 0;
+    _interrupt_if = 0;
+
     _PC = 0x100;
     _regs.AF = 0x01B0;
     _regs.BC = 0x0013;
     _regs.DE = 0x00D8;
     _regs.HL = 0x014D;
     _SP = 0xFFFE;
+
+    _pOpSrc8 = nullptr;
+    _pOpDst8 = nullptr;
+    _pOpRW8 = nullptr;
+    _pOpSrc16 = nullptr;
+    _pOpDst16 = nullptr;
+    _pOpRW16 = nullptr;
 }
 
 void Cpu::UnInit()
@@ -269,11 +282,9 @@ void Cpu::Decode()
         op = Read8BumpPC();
     }
 
-    u8 x = (op >> 6) & 0b11;
     u8 y = (op >> 3) & 0b111;
     u8 z = op & 0b111;
     u8 p = (op >> 4) & 0b11;
-    u8 q = (op >> 3) & 0b1;
 
     if (!prefix)
     {

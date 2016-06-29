@@ -58,11 +58,9 @@ void Disassembler::Disassemble(u16 pc, Disassembler::Instruction& instr)
         instr._codeBytes.push_back(op);
     }
 
-    u8 x = (op >> 6) & 0b11;
     u8 y = (op >> 3) & 0b111;
     u8 z = op & 0b111;
     u8 p = (op >> 4) & 0b11;
-    u8 q = (op >> 3) & 0b1;
 
     if (!prefix)
     {

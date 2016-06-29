@@ -37,7 +37,7 @@ void Video::Init()
     _scanlineCycles = 0;
 
     WriteLCDC(0x91);
-    _stat = 0;
+    WriteSTAT(0);
     SCY = 0;
     SCX = 0;
     _ly = 0;
@@ -121,6 +121,10 @@ void Video::WriteLCDC(u8 val)
     _bgTileMapAddr = (val & (1 << 3)) == 0 ? 0x9800 : 0x9c00;
     _bgTileDataAddr = (val & (1 << 4)) == 0 ? 0x8800 : 0x8000;
     _tileIndexIsSigned = (val & (1 << 4)) == 0;
+
+    _backgroundEnabled = (val & (1 << 0)) != 0;
+    _spritesEnabled = (val & (1 << 1)) != 0;
+    _windowEnabled = (val & (1 << 5)) != 0;
 }
 
 u8 Video::ReadSTAT()
@@ -273,6 +277,8 @@ u8 Video::GetBackgroundPixel(u8 x, u8 y)
 
 u8 Video::GetWindowPixel(u8 x, u8 y)
 {
+    (void)x;
+    (void)y;
     return 0;
 }
 

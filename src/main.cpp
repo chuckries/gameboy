@@ -3,7 +3,7 @@
 #include "SdlGfx.h"
 #include "SdlInput.h"
 
-int main(int argc, const char* argv[])
+int main(int argc, char* argv[])
 {
     if (argc < 2)
     {
@@ -17,8 +17,8 @@ int main(int argc, const char* argv[])
     gameboy.LoadRom(argv[1]);
 
     SdlGfx gfx;
-    SdlInput input;
-    u8 gbScreen[160 * 144];
+    SdlInput input(gameboy);
+    u8 gbScreen[160 * 144] = { 0 };
 
     for (;;)
     {
@@ -26,6 +26,4 @@ int main(int argc, const char* argv[])
         gfx.Blit(gbScreen);
         input.CheckInput();
     }
-
-    gameboy.UnInit();
 }

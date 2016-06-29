@@ -30,7 +30,9 @@ u8 Cart::Load(u16 addr)
 
 void Cart::Store(u16 addr, u8 val)
 {
-    //__debugbreak();
+    (void)addr;
+    (void)val;
+    __debugbreak();
 }
 
 void Cart::LoadRom(const char* romPath)
@@ -40,7 +42,7 @@ void Cart::LoadRom(const char* romPath)
     {
         // get size of ROM file
         ifs.seekg(0, ifs.end);
-        int size = ifs.tellg();
+        long long size = ifs.tellg();
         _rom.resize(size);
         ifs.seekg(0, ifs.beg);
 
