@@ -27,19 +27,14 @@ Gameboy::~Gameboy()
     _input->UnInit();
 }
 
-void Gameboy::Init()
+void Gameboy::Init(std::unique_ptr<Rom> rom)
 {
-    _cart->Init();
+    _cart->Init(std::move(rom));
     _memoryMap->Init();
     _cpu->Init();
     _video->Init();
     _timer->Init();
     _input->Init();
-}
-
-void Gameboy::LoadRom(const char* romPath)
-{
-    _cart->LoadRom(romPath);
 }
 
 static u8 scroll = 0;

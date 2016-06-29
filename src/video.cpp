@@ -42,6 +42,8 @@ void Video::Init()
     SCX = 0;
     _ly = 0;
     LYC = 0;
+    WX = 0;
+    WY = 0;
     WriteBGP(0xFC);
     WriteOBP0(0xFF);
     WriteOBP1(0xFF);
@@ -297,13 +299,16 @@ bool Video::GetSpritePixel(u8 x, u8 y, u8 numSpritesOnLine, u8& sprColor, bool& 
     }
 
     Sprite* spr = *it;
-    u16 tileAddr = 0x8000 + (spr->TileNumber * 16) + ((y % 8) * 2);
+    u8 tileY = y % 8;
+    if (spr->FlipY()) tileY = 7 - tileY;
+    u16 tileAddr = 0x8000 + (spr->TileNumber * 16) + (tileY * 2);
 
     u8 tileLo = _vram[tileAddr & VRAM_MASK];
     u8 tileHi = _vram[(tileAddr & VRAM_MASK) + 1];
 
     u8 tileX = x % 8;
-    u8 paletteIndex = ((tileLo >> (7 - tileX)) & 0x01) | (((tileHi >> (7 - tileX)) & 0x01) << 1);
+    if (!spr->FlipX()) tileX = 7 - tileX;
+    u8 paletteIndex = ((tileLo >> tileX) & 0x01) | (((tileHi >> tileX) & 0x01) << 1);
     if (paletteIndex == 0)
     {
         return false;

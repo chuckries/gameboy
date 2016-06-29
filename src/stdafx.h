@@ -76,8 +76,25 @@ struct Bytes
     }
 };
 
+union Byte {
+    u8 B;
+    struct {
+        bool _0 : 1;
+        bool _1 : 1;
+        bool _2 : 1;
+        bool _3 : 1;
+        bool _4 : 1;
+        bool _5 : 1;
+        bool _6 : 1;
+        bool _7 : 1;
+    } b;
+};
+
+static_assert(sizeof(Byte) == sizeof(u8), "");
+
 struct Word : public Bytes<u16>
 {
+
     u8 _0;
     u8 _1;
 

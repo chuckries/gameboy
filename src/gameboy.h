@@ -6,8 +6,7 @@ class MemoryMap;
 class Cart;
 class Timer;
 class Input;
-
-class SdlGfx;
+class Rom;
 
 class Gameboy
 {
@@ -17,13 +16,12 @@ class Gameboy
     friend class Cart;
     friend class Timer;
     friend class Input;
+
 public:
     Gameboy();
     virtual ~Gameboy();
 
-    void Init();
-
-    void LoadRom(const char* romPath);
+    void Init(std::unique_ptr<Rom> rom);
 
     void DoFrame(u8 gbScreen[]);
 

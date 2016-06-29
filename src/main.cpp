@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "gameboy.h"
+#include "cart.h"
 #include "SdlGfx.h"
 #include "SdlInput.h"
 
@@ -13,8 +14,7 @@ int main(int argc, char* argv[])
 
     Gameboy gameboy;
 
-    gameboy.Init();
-    gameboy.LoadRom(argv[1]);
+    gameboy.Init(std::make_unique<StdRom>(argv[1]));
 
     SdlGfx gfx;
     SdlInput input(gameboy);
