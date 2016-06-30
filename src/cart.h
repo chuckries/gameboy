@@ -20,16 +20,21 @@ protected:
 
 public:
     virtual ~Rom() { }
-    virtual bool LoadFromFile() = 0;
+    virtual bool Init();
 
 public:
-    MBC_IDENTIFIER MBCID();
+    MBC_IDENTIFIER MBCID;
+    bool HasRam;
+    bool HasSave;
 
 public:
     u8 operator [](int i) const
     {
         return _rom[i];
     }
+
+protected:
+    virtual bool LoadFromFile() = 0;
 
 protected:
     std::vector<u8> _rom;
@@ -46,21 +51,41 @@ private:
     const char* _filePath;
 };
 
-class MBC1
+class MbcRomOnly
 {
 public:
-    MBC1(const Rom& rom);
-    virtual ~MBC1();
+    MbcRomOnly(const Rom& rom);
+    virtual ~MbcRomOnly();
 
     virtual u8 LoadRom(u16 addr);
     virtual void StoreRom(u16 addr, u8 val);
-    //virtual u8 LoadRam(u16 addr);
-    //virtual void StoreRam(u16 addr, u8 val);
+    virtual u8 LoadRam(u16 addr);
+    virtual void StoreRam(u16 addr, u8 val);
 
-private:
+protected:
     const Rom& _rom;
 
-    u16 _addrOffset;
+    u32 _romOffset;
+    u32 _ramOffset;
+
+    bool _ramEnabled;
+};
+
+class Mbc1 : public MbcRomOnly
+{
+public:
+    Mbc1(const Rom& rom);
+    virtual ~Mbc1();
+
+    virtual void StoreRom(u16 addr, u8 val);
+
+protected:
+    virtual void CalculateOffsets();
+
+protected:
+    u8 _reg2000;
+    u8 _reg4000;
+    bool _reg6000;
 };
 
 class Cart
@@ -72,8 +97,10 @@ public:
     void Init(std::unique_ptr<Rom> rom);
     void UnInit();
 
-    u8 Load(u16 addr);
-    void Store(u16 addr, u8 val);
+    u8 LoadRom(u16 addr);
+    void StoreRom(u16 addr, u8 val);
+    u8 LoadRam(u16 addr);
+    void StoreRam(u16 addr, u8 val);
 
 private:
     const Gameboy& _gameboy;
@@ -81,5 +108,5 @@ private:
 
 private:
     MBC_IDENTIFIER _mbcId;
-    std::unique_ptr<MBC1> _mbc1;
+    std::unique_ptr<Mbc1> _mbc1;
 };

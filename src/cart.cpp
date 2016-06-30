@@ -3,22 +3,30 @@
 #include "gameboy.h"
 #include <fstream>
 
-MBC_IDENTIFIER Rom::MBCID()
+bool Rom::Init()
 {
-    switch (_rom[0x147])
+    if (LoadFromFile())
     {
-    case 0x00:
-    case 0x08:
-    case 0x09:
-        return MBC_ROM_ONLY;
-    case 0x01:
-    case 0x02:
-    case 0x03:
-        return MBC_1;
-    default:
-        __debugbreak();
-        return MBC_UNKNOWN;
+        switch (_rom[0x147])
+        {
+        case 0x09: HasSave = true;
+        case 0x08: HasRam = true;
+        case 0x00: MBCID = MBC_ROM_ONLY; break;
+
+        case 0x03: HasSave = true;
+        case 0x02: HasRam = true;
+        case 0x01: MBCID = MBC_1; break;
+
+        default:
+            __debugbreak();
+            MBCID = MBC_UNKNOWN;
+            break;
+        }
+
+        return true;
     }
+
+    return false;
 }
 
 StdRom::StdRom(const char* filePath)
@@ -44,26 +52,103 @@ bool StdRom::LoadFromFile()
     return true;
 }
 
-MBC1::MBC1(const Rom& rom)
+MbcRomOnly::MbcRomOnly(const Rom& rom)
     : _rom(rom)
-    , _addrOffset(0x4000)
+    , _romOffset(0x4000)
+    , _ramOffset(0x0000)
 {
 }
 
-MBC1::~MBC1()
+MbcRomOnly::~MbcRomOnly()
 {
 }
 
-u8 MBC1::LoadRom(u16 addr)
+u8 MbcRomOnly::LoadRom(u16 addr)
 {
-    return _rom[_addrOffset + (addr & 0x3FFF)];
+    return _rom[_romOffset + (addr & 0x3FFF)];
 }
 
-void MBC1::StoreRom(u16 addr, u8 val)
+void MbcRomOnly::StoreRom(u16 addr, u8 val)
 {
-    (void)addr;
-    (void)val;
-    __debugbreak();
+    // nothing for Rom Only
+}
+
+u8 MbcRomOnly::LoadRam(u16 addr)
+{
+    if (_rom.HasRam)
+    {
+        __debugbreak();
+        return 0;
+    }
+    return 0;
+}
+
+void MbcRomOnly::StoreRam(u16 addr, u8 val)
+{
+    if (_rom.HasRam)
+    {
+        __debugbreak();
+    }
+}
+
+Mbc1::Mbc1(const Rom& rom)
+    : MbcRomOnly(rom)
+{
+}
+
+Mbc1::~Mbc1()
+{
+}
+
+void Mbc1::StoreRom(u16 addr, u8 val)
+{
+    if (addr < 0x2000)
+    {
+        _ramEnabled = (val & 0x0A) == 0x0A;
+    }
+    else if (addr < 0x4000)
+    {
+        _reg2000 = val & 0x1F;
+        CalculateOffsets();
+    }
+    else if (addr < 0x6000)
+    {
+        _reg4000 = val & 0x03;
+        CalculateOffsets();
+    }
+    else if (addr < 0x8000)
+    {
+        _reg6000 = ((val & 1) != 0);
+        CalculateOffsets();
+    }
+    else
+    {
+        __debugbreak();
+    }
+}
+
+void Mbc1::CalculateOffsets()
+{
+    u32 romBank = _reg2000;
+    u32 ramBank = 0;
+
+    if (romBank == 0)
+    {
+        romBank++;
+    }
+
+    if (!_reg6000)
+    {
+        // ROM Banking Mode
+        romBank |= (_reg6000 << 5);
+    }
+    else
+    {
+        ramBank = _reg6000;
+    }
+
+    _romOffset = romBank * 0x4000;
+    _ramOffset = ramBank & 0x2000;
 }
 
 Cart::Cart(const Gameboy& gameboy)
@@ -81,13 +166,13 @@ Cart::~Cart()
 void Cart::Init(std::unique_ptr<Rom> rom)
 {
     _rom = std::move(rom);
-    _rom->LoadFromFile();
+    _rom->Init();
 
-    _mbcId = _rom->MBCID();
+    _mbcId = _rom->MBCID;
     switch (_mbcId)
     {
     case MBC_1:
-        _mbc1 = std::make_unique<MBC1>(*_rom.get());
+        _mbc1 = std::make_unique<Mbc1>(*_rom.get());
     }
 }
 
@@ -95,7 +180,7 @@ void Cart::UnInit()
 {
 }
 
-u8 Cart::Load(u16 addr)
+u8 Cart::LoadRom(u16 addr)
 {
     switch (addr & 0x4000)
     {
@@ -118,7 +203,7 @@ u8 Cart::Load(u16 addr)
     return 0;
 }
 
-void Cart::Store(u16 addr, u8 val)
+void Cart::StoreRom(u16 addr, u8 val)
 {
     switch (_mbcId)
     {
@@ -126,5 +211,28 @@ void Cart::Store(u16 addr, u8 val)
         break;
     case MBC_1:
         _mbc1->StoreRom(addr, val);
+        break;
+    }
+}
+
+u8 Cart::LoadRam(u16 addr)
+{
+    switch (addr & 0x4000)
+    {
+
+    }
+
+    return 0;
+}
+
+void Cart::StoreRam(u16 addr, u8 val)
+{
+    switch (_mbcId)
+    {
+    case MBC_ROM_ONLY:
+        break;
+    case MBC_1:
+        _mbc1->StoreRam(addr, val);
+        break;
     }
 }

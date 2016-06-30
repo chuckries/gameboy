@@ -10,7 +10,7 @@ public:
     enum class InterruptType : u8
     {
         V_BLANK = (1 << 0),
-        LCDC = (1 << 1),
+        STAT = (1 << 1),
         TIMER = (1 << 2),
         SERIAL = (1 << 3),
         INPUT = (1 << 4)
@@ -60,6 +60,8 @@ private:
 
     u8 _interrupt_if;
     u8 _interrupt_ie;
+
+    bool _isHalted;
 
     // Registers
 private:

@@ -3,20 +3,92 @@
 #include "gameboy.h"
 #include "cpu.h"
 #include "memory.h"
-#include <algorithm>
 
 const u32 Video::CYCLES_PER_SCANLINE = 456;
 const u32 Video::SCANLINES_PER_FRAME = 154;
 const u32 Video::VBLANK_SCANLINE = 144;
 const u16 Video::VRAM_MASK = 0x1FFF;
 
+u8 Video::Tile::GetPixelData(u8 x, u8 y)
+{
+    u8 tileLo = _bytes[y * 2];
+    u8 tileHi = _bytes[(y * 2) + 1];
+
+    return ((tileLo >> (7 - x)) & 0x01) | (((tileHi >> (7 - x)) & 0x1) << 1);
+}
+
+u8 Video::Sprite::Y()
+{
+    return _y - 16;
+}
+
+u8 Video::Sprite::X()
+{
+    return _x - 8;
+}
+
+bool Video::Sprite::AboveBG()
+{
+    return ((_attributes & (1 << 7)) == 0);
+}
+
+bool Video::Sprite::FlipY()
+{
+    return ((_attributes & (1 << 6)) != 0);
+}
+
+bool Video::Sprite::FlipX()
+{
+    return ((_attributes & (1 << 5)) != 0);
+}
+
+u8 Video::Sprite::GBPalette()
+{
+    return (_attributes >> 4) & 1;
+}
+
+Video::Oam::Oam()
+    : _mem{ 0 }
+{
+}
+
+void Video::Oam::Init()
+{
+    memset(_mem.bytes, 0, sizeof(_mem.bytes));
+    NumSpritesOnLine = 0;
+}
+
+u8 Video::Oam::operator[](int i) const
+{
+    return _mem.bytes[i];
+}
+
+u8& Video::Oam::operator[](int i)
+{
+    return _mem.bytes[i];
+}
+
+void Video::Oam::ProcessSpritesForLine(u8 y)
+{
+    NumSpritesOnLine = 0;
+    for (u8 i = 0; i < 40 && NumSpritesOnLine < 10; i++)
+    {
+        Sprite* spr = &_mem.sprites[i];
+        if (y >= spr->Y() && y < spr->Y() + SpriteHeight)
+        {
+            SpritesOnLine[NumSpritesOnLine++] = spr;
+        }
+    }
+
+    std::sort(SpritesOnLine, SpritesOnLine + NumSpritesOnLine, [](Sprite* lhs, Sprite* rhs) {
+        return (lhs->X() < rhs->X()) && (lhs < rhs);
+    });
+}
+
 Video::Video(const Gameboy& gameboy)
     : _gameboy(gameboy)
     , _cpu(nullptr)
     , _vram(0)
-    , _oam(0)
-    , _scanlineCycles(0)
-    , _ly(0)
 {
 }
 
@@ -29,10 +101,11 @@ void Video::Init()
 {
     _cpu = _gameboy._cpu;
 
+    _vram.clear();
     _vram.resize(0x2000, 0);
-    _oam.resize(0xA0, 0);
-    _sprites = (Sprite*)&_oam[0];
-    _lineSprites.resize(40, nullptr);
+    _spriteTiles = (Tile*)&_vram[0x8000 & VRAM_MASK];
+
+    _oam.Init();
 
     _scanlineCycles = 0;
 
@@ -78,36 +151,6 @@ void Video::StoreOAM(u16 addr, u8 val)
     _oam[addr] = val;
 }
 
-bool Video::Step(u32 cycles, u8 gbScreen[])
-{
-    bool vblank = false;
-
-    if (_screenEnabled)
-    {
-        _scanlineCycles += cycles;
-        if (_scanlineCycles >= CYCLES_PER_SCANLINE)
-        {
-            if (_ly < VBLANK_SCANLINE)
-            {
-                DoScanline(gbScreen);
-            }
-            _ly++;
-            if (_ly == VBLANK_SCANLINE)
-            {
-                _cpu->RequestInterrupt(Cpu::InterruptType::V_BLANK);
-                vblank = true;
-            }
-            else if (_ly == SCANLINES_PER_FRAME)
-            {
-                _ly = 0;
-            }
-            _scanlineCycles -= CYCLES_PER_SCANLINE;
-        }
-    }
-
-    return vblank;
-}
-
 u8 Video::ReadLCDC()
 {
     return _lcdc;
@@ -120,28 +163,39 @@ void Video::WriteLCDC(u8 val)
     _screenEnabled = (val & (1 << 7)) != 0;
     if (!_screenEnabled) _ly = 0;
 
-    _bgTileMapAddr = (val & (1 << 3)) == 0 ? 0x9800 : 0x9c00;
-    _bgTileDataAddr = (val & (1 << 4)) == 0 ? 0x8800 : 0x8000;
-    _tileIndexIsSigned = (val & (1 << 4)) == 0;
+    _bgTileMap = (val & (1 << 3)) == 0 ? &_vram[0x9800 & VRAM_MASK] : &_vram[0x9c00 & VRAM_MASK];
+    _windowTileMap = (val & (1 << 6)) == 0 ? &_vram[0x9800 & VRAM_MASK] : &_vram[0x9c00 & VRAM_MASK];
+
+    if ((val & (1 << 4)) != 0)
+    {
+        _bgTiles = (Tile*)&_vram[0x8000 & VRAM_MASK];
+        _tileIndexIsSigned = false;
+    }
+    else
+    {
+        _bgTiles = (Tile*)&_vram[0x9000 & VRAM_MASK];
+        _tileIndexIsSigned = true;
+    }
 
     _backgroundEnabled = (val & (1 << 0)) != 0;
     _spritesEnabled = (val & (1 << 1)) != 0;
     _windowEnabled = (val & (1 << 5)) != 0;
+
+    _oam.SpriteHeight = (val & (1 << 2)) == 0 ? 8 : 16;
 }
 
 u8 Video::ReadSTAT()
 {
+    _stat &= 0xF8;
+    _stat |= (_statMode & 0x3);
+    if (_ly == LYC) _stat |= (1 << 3);
+
     return _stat;
 }
 
 void Video::WriteSTAT(u8 val)
 {
-    _stat = val;
-
-    if ((_stat & 0x71) != 0)
-    {
-        __debugbreak();
-    }
+    _stat = (val & 0b01111000) | 0x80;
 }
 
 u8 Video::ReadBGP()
@@ -179,9 +233,85 @@ u8 Video::LY()
     return _ly;
 }
 
+bool Video::Step(u32 cycles, u8 gbScreen[])
+{
+    bool vblank = false;
+
+    if (_screenEnabled)
+    {
+        _scanlineCycles += cycles;
+
+        u8 oldStatMode = _statMode;
+        if (_ly < VBLANK_SCANLINE)
+        {
+            if (_scanlineCycles < 80)
+            {
+                _statMode = 2;
+            }
+            else if (_scanlineCycles < 252)
+            {
+                _statMode = 3;
+            }
+            else
+            {
+                _statMode = 0;
+            }
+        }
+        else
+        {
+            _statMode = 1;
+        }
+
+        if (_scanlineCycles >= CYCLES_PER_SCANLINE)
+        {
+            if (_ly < VBLANK_SCANLINE)
+            {
+                DoScanline(gbScreen);
+            }
+            _ly++;
+            if (_ly == VBLANK_SCANLINE)
+            {
+                _cpu->RequestInterrupt(Cpu::InterruptType::V_BLANK);
+                if ((_stat & (1 << 5)) != 0) _cpu->RequestInterrupt(Cpu::InterruptType::STAT);
+                vblank = true;
+                _statMode = 1;
+            }
+            else if (_ly == SCANLINES_PER_FRAME)
+            {
+                _ly = 0;
+            }
+
+            if (_ly == LYC && ((_stat & (1 << 6)) != 0))
+            {
+                if ((_stat & (1 << 5)) != 0) _cpu->RequestInterrupt(Cpu::InterruptType::STAT);
+            }
+
+            _scanlineCycles -= CYCLES_PER_SCANLINE;
+        }
+
+        if (_statMode != oldStatMode)
+        {
+            DoStatModeInterrupt();
+        }
+    }
+
+    return vblank;
+}
+
+void Video::DoStatModeInterrupt()
+{
+    if (_statMode < 3)
+    {
+        if ((_stat & (1 << (_statMode + 3))) != 0)
+        {
+            _cpu->RequestInterrupt(Cpu::InterruptType::STAT);
+        }
+    }
+}
+
 void Video::DoScanline(u8 gbScreen[])
 {
-    u8 numSpritesOnLine = ProcessLineSprites();
+    _oam.ProcessSpritesForLine(_ly);
 
     u32 screenOffset = _ly * 160;
     for (u8 i = 0; i < 160; i++)
@@ -201,7 +331,7 @@ void Video::DoScanline(u8 gbScreen[])
         bool sprHasPriority = false;
         if (_spritesEnabled)
         {
-            sprIsOpqaue = GetSpritePixel(i, _ly, numSpritesOnLine, sprColor, sprHasPriority);
+            sprIsOpqaue = GetSpritePixel(i, _ly, sprColor, sprHasPriority);
         }
 
         u8 color = (_bgp >> (bgPaletteIndex * 2)) & 0x03;
@@ -217,64 +347,26 @@ void Video::DoScanline(u8 gbScreen[])
     }
 }
 
-void Video::DoBackground(u8 gbScreen[])
+u8 Video::GetBackgroundPixel(u32 x, u32 y)
 {
-    u8 y = _ly + SCY;
-    u16 bgTileMapAddr = _bgTileMapAddr + ((y / 8) * 32);
+    x = (x + SCX) % 256;
+    y += (u32)SCY;
 
-    u8 tileX = SCX % 8;
-    u8 lineIndex = 0;
-    for (u8 x = 0; x < 21 && lineIndex < 160; x++)
-    {
-        i16 tileNum = 0;
-        u16 bgTileMapAddrOffset = bgTileMapAddr + ((x + (SCX / 8)) % 32);
-        if (_tileIndexIsSigned)
-        {
-            tileNum = (i16)(i8)_vram[bgTileMapAddrOffset & VRAM_MASK];
-        }
-        else
-        {
-            tileNum = (i16)(u16)_vram[bgTileMapAddrOffset & VRAM_MASK];
-        }
+    u8 unsignedTileNum = _bgTileMap[((y / 8) * 32) + (x / 8)];
 
-        u16 tileAddr = _bgTileDataAddr + (tileNum * 16) + ((y % 8) * 2);
-
-        u8 tileLo = _vram[tileAddr & VRAM_MASK];
-        u8 tileHi = _vram[(tileAddr & VRAM_MASK) + 1];
-
-        for (; tileX < 8 && lineIndex < 160; tileX++, lineIndex++)
-        {
-            u8 paletteIndex = ((tileLo >> (7 - tileX)) & 0x01) | (((tileHi >> (7 - tileX)) & 0x01) << 1);
-            u8 color = (_bgp >> (paletteIndex * 2)) & 0x03;
-            u32 screenIndex = (_ly * 160) + lineIndex;
-            gbScreen[screenIndex] = color;
-        }
-        tileX = 0;
-    }
-}
-
-u8 Video::GetBackgroundPixel(u8 x, u8 y)
-{
-    y += SCY;
-    x += SCX;
-    u16 bgTileMapAddr = _bgTileMapAddr + ((y / 8) * 32) + (x / 8);
-    i16 tileNum = 0;
+    Tile* tile;
     if (_tileIndexIsSigned)
     {
-        tileNum = (i16)(i8)_vram[bgTileMapAddr & VRAM_MASK];
+        tile = &_bgTiles[(i8)unsignedTileNum];
     }
     else
     {
-        tileNum = (i16)(u16)_vram[bgTileMapAddr & VRAM_MASK];
+        tile = &_bgTiles[unsignedTileNum];
     }
 
-    u16 tileAddr = _bgTileDataAddr + (tileNum * 16) + ((y % 8) * 2);
-
-    u8 tileLo = _vram[tileAddr & VRAM_MASK];
-    u8 tileHi = _vram[(tileAddr & VRAM_MASK) + 1];
-
     u8 tileX = x % 8;
-    return ((tileLo >> (7 - tileX)) & 0x01) | (((tileHi >> (7 - tileX)) & 0x01) << 1);
+    u8 tileY = y % 8;
+    return tile->GetPixelData(tileX, tileY);
 }
 
 u8 Video::GetWindowPixel(u8 x, u8 y)
@@ -284,10 +376,10 @@ u8 Video::GetWindowPixel(u8 x, u8 y)
     return 0;
 }
 
-bool Video::GetSpritePixel(u8 x, u8 y, u8 numSpritesOnLine, u8& sprColor, bool& sprHasPriority)
+bool Video::GetSpritePixel(u8 x, u8 y, u8& sprColor, bool& sprHasPriority)
 {
-    auto begin = _lineSprites.begin();
-    auto end = begin + numSpritesOnLine;
+    Sprite** begin = _oam.SpritesOnLine;
+    Sprite** end = _oam.SpritesOnLine + _oam.NumSpritesOnLine;
     auto it = std::find_if(begin, end, [x](Sprite* spr)
     {
         return x >= spr->X()  && (x <spr->X() + 8);
@@ -299,16 +391,29 @@ bool Video::GetSpritePixel(u8 x, u8 y, u8 numSpritesOnLine, u8& sprColor, bool& 
     }
 
     Sprite* spr = *it;
-    u8 tileY = y % 8;
+
+    u8 tileNumber = spr->TileNumber;
+    if (_oam.SpriteHeight == 16)
+    {
+        tileNumber &= 0xFE;
+        bool upperTile = (y - spr->Y()) < 8;
+        if ((!spr->FlipY() && !upperTile) || (spr->FlipY() && upperTile))
+        {
+            tileNumber++;
+        }
+    }
+
+    Tile* tile = &_spriteTiles[tileNumber];
+
+    u8 tileY = (y - spr->Y()) % 8;
     if (spr->FlipY()) tileY = 7 - tileY;
-    u16 tileAddr = 0x8000 + (spr->TileNumber * 16) + (tileY * 2);
+    u8 tileX = (x - spr->X()) % 8;
+    if (spr->FlipX())
+    {
+        tileX = 7 - tileX;
+    }
+    u8 paletteIndex = tile->GetPixelData(tileX, tileY);
 
-    u8 tileLo = _vram[tileAddr & VRAM_MASK];
-    u8 tileHi = _vram[(tileAddr & VRAM_MASK) + 1];
-
-    u8 tileX = x % 8;
-    if (!spr->FlipX()) tileX = 7 - tileX;
-    u8 paletteIndex = ((tileLo >> tileX) & 0x01) | (((tileHi >> tileX) & 0x01) << 1);
     if (paletteIndex == 0)
     {
         return false;
@@ -318,23 +423,4 @@ bool Video::GetSpritePixel(u8 x, u8 y, u8 numSpritesOnLine, u8& sprColor, bool& 
     sprHasPriority = spr->AboveBG();
 
     return true;
-}
-
-u8 Video::ProcessLineSprites()
-{
-    u8 numSprites = 0;
-    for (u8 i = 0; i < 40; i++)
-    {
-        Sprite* spr = &_sprites[i];
-        if (_ly >= spr->Y() && _ly < spr->Y() + 8)
-        {
-            _lineSprites[numSprites++] = spr;
-        }
-    }
-
-    std::sort(_lineSprites.begin(), _lineSprites.begin() + numSprites, [](Sprite* lhs, Sprite* rhs) {
-        return (lhs->X() < rhs->X()) && (lhs < rhs);
-    });
-
-    return numSprites <= 10 ? numSprites : 10;
 }

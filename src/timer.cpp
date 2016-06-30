@@ -50,7 +50,7 @@ void Timer::WriteDIV()
 
 u8 Timer::ReadTIMA()
 {
-    __debugbreak();
+    //__debugbreak();
     return _tima;
 }
 
@@ -61,7 +61,7 @@ void Timer::WriteTIMA(u8 val)
 
 u8 Timer::ReadTMA()
 {
-    __debugbreak();
+    //__debugbreak();
     return _tma;
 }
 
@@ -72,7 +72,7 @@ void Timer::WriteTMA(u8 val)
 
 u8 Timer::ReadTAC()
 {
-    __debugbreak();
+    //__debugbreak();
     return _tac;
 }
 
@@ -81,6 +81,6 @@ void Timer::WriteTAC(u8 val)
     _tac = val;
     if ((_tac & (1 << 2)) != 0)
     {
-        __debugbreak();
+        //__debugbreak();
     }
 }

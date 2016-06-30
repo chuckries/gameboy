@@ -41,7 +41,7 @@ u8 MemoryMap::Load(u16 addr)
     if (addr < 0x8000)
     {
         // Cartridge ROM
-        return _cart->Load(addr);
+        return _cart->LoadRom(addr);
     }
     else if (addr < 0xA000)
     {
@@ -51,7 +51,7 @@ u8 MemoryMap::Load(u16 addr)
     else if (addr < 0xC000)
     {
         // Cartridge RAM
-        __debugbreak();
+        return _cart->LoadRam(addr);
     }
     else if (addr < 0xFE00)
     {
@@ -96,6 +96,7 @@ u8 MemoryMap::Load(u16 addr)
         case 0xFF12:
         case 0xFF13:
         case 0xFF14:
+        case 0xFF15:
         case 0xFF16:
         case 0xFF17:
         case 0xFF18:
@@ -105,6 +106,7 @@ u8 MemoryMap::Load(u16 addr)
         case 0xFF1C:
         case 0xFF1D:
         case 0xFF1E:
+        case 0xFF1F:
         case 0xFF20:
         case 0xFF21:
         case 0xFF22:
@@ -112,6 +114,15 @@ u8 MemoryMap::Load(u16 addr)
         case 0xFF24:
         case 0xFF25:
         case 0xFF26:
+        case 0xFF27:
+        case 0xFF28:
+        case 0xFF29:
+        case 0xFF2A:
+        case 0xFF2B:
+        case 0xFF2C:
+        case 0xFF2D:
+        case 0xFF2E:
+        case 0xFF2F:
         case 0xFF30:
         case 0xFF31:
         case 0xFF32:
@@ -179,7 +190,7 @@ void MemoryMap::Store(u16 addr, u8 val)
     if (addr < 0x8000)
     {
         // Cartridge ROM
-        _cart->Store(addr, val);
+        _cart->StoreRom(addr, val);
     }
     else if (addr < 0xA000)
     {
@@ -189,7 +200,7 @@ void MemoryMap::Store(u16 addr, u8 val)
     else if (addr < 0xC000)
     {
         // Cartridge RAM
-        __debugbreak();
+        _cart->StoreRam(addr, val);
     }
     else if (addr < 0xFE00)
     {
@@ -221,6 +232,9 @@ void MemoryMap::Store(u16 addr, u8 val)
         case 0xFF02:
             _io_SC = val;
             break;
+        case 0xFF03:
+            // Undocumented
+            break;
         case 0xFF04:
             _timer->WriteDIV();
             break;
@@ -233,11 +247,21 @@ void MemoryMap::Store(u16 addr, u8 val)
         case 0xFF07:
             _timer->WriteTAC(val);
             break;
+        case 0xFF08:
+        case 0xFF09:
+        case 0xFF0A:
+        case 0xFF0B:
+        case 0xFF0C:
+        case 0xFF0D:
+        case 0xFF0E:
+            // Undocumented
+            break;
         case 0xFF10:
         case 0xFF11:
         case 0xFF12:
         case 0xFF13:
         case 0xFF14:
+        case 0xFF15:
         case 0xFF16:
         case 0xFF17:
         case 0xFF18:
@@ -247,6 +271,7 @@ void MemoryMap::Store(u16 addr, u8 val)
         case 0xFF1C:
         case 0xFF1D:
         case 0xFF1E:
+        case 0xFF1F:
         case 0xFF20:
         case 0xFF21:
         case 0xFF22:
@@ -254,6 +279,15 @@ void MemoryMap::Store(u16 addr, u8 val)
         case 0xFF24:
         case 0xFF25:
         case 0xFF26:
+        case 0xFF27:
+        case 0xFF28:
+        case 0xFF29:
+        case 0xFF2A:
+        case 0xFF2B:
+        case 0xFF2C:
+        case 0xFF2D:
+        case 0xFF2E:
+        case 0xFF2F:
         case 0xFF30:
         case 0xFF31:
         case 0xFF32:
@@ -283,6 +317,9 @@ void MemoryMap::Store(u16 addr, u8 val)
             break;
         case 0xFF43:
             _video->SCX = val;
+            break;
+        case 0xFF44:
+            // TODO: what happens when write to LY?
             break;
         case 0xFF45:
             _video->LYC = val;

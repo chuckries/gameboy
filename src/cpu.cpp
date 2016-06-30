@@ -101,6 +101,8 @@ void Cpu::Init()
     _interrupt_ie = 0;
     _interrupt_if = 0;
 
+    _isHalted = false;
+
     _PC = 0x100;
     _regs.AF = 0x01B0;
     _regs.BC = 0x0013;
@@ -192,7 +194,18 @@ u32 Cpu::Step()
 
     if (!DoInterrupt())
     {
-        Decode();
+        if (!_isHalted)
+        {
+            Decode();
+        }
+        else
+        {
+            _cycles = 4;
+        }
+    }
+    else
+    {
+        _isHalted = false;
     }
 
     return _cycles;
@@ -547,7 +560,7 @@ void Cpu::Decode()
             break;
         case 0x76:
             // HALT
-            __debugbreak();
+            _isHalted = true;
             break;
         case 0x80:
         case 0x81:
