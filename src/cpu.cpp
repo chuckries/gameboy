@@ -76,16 +76,10 @@ Cpu::Cpu(const Gameboy& gameboy)
     , _decode_alu{ &Cpu::ADD8, &Cpu::ADC, &Cpu::SUB, &Cpu::SBC, &Cpu::AND, &Cpu::XOR, &Cpu::OR, &Cpu::CP }
     , _decode_rot{ &Cpu::RLC, &Cpu::RRC, &Cpu::RL, &Cpu::RR, &Cpu::SLA, &Cpu::SRA, &Cpu::SWAP, &Cpu::SRL }
 {
-#ifdef TRACE
-    fopen_s(&_traceLog, "trace.log", "w");
-#endif // TRACE
 }
 
 Cpu::~Cpu()
 {
-#ifdef TRACE
-    fclose(_traceLog);
-#endif // TRACE
 }
 
 void Cpu::Init()

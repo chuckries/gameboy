@@ -349,8 +349,10 @@ void Video::DoScanline(u8 gbScreen[])
 
 u8 Video::GetBackgroundPixel(u32 x, u32 y)
 {
-    x = (x + SCX) % 256;
+    x += (u32)SCX;
+    x %= 256;
     y += (u32)SCY;
+    y %= 256;
 
     u8 unsignedTileNum = _bgTileMap[((y / 8) * 32) + (x / 8)];
 
@@ -378,49 +380,47 @@ u8 Video::GetWindowPixel(u8 x, u8 y)
 
 bool Video::GetSpritePixel(u8 x, u8 y, u8& sprColor, bool& sprHasPriority)
 {
-    Sprite** begin = _oam.SpritesOnLine;
-    Sprite** end = _oam.SpritesOnLine + _oam.NumSpritesOnLine;
-    auto it = std::find_if(begin, end, [x](Sprite* spr)
+    for (u8 i = 0; i < _oam.NumSpritesOnLine; i++)
     {
-        return x >= spr->X()  && (x <spr->X() + 8);
-    });
+        Sprite* spr = _oam.SpritesOnLine[i];
 
-    if (it == end)
-    {
-        return 0;
-    }
-
-    Sprite* spr = *it;
-
-    u8 tileNumber = spr->TileNumber;
-    if (_oam.SpriteHeight == 16)
-    {
-        tileNumber &= 0xFE;
-        bool upperTile = (y - spr->Y()) < 8;
-        if ((!spr->FlipY() && !upperTile) || (spr->FlipY() && upperTile))
+        if (!(x >= spr->X() && (x < spr->X() + 8)))
         {
-            tileNumber++;
+            continue;
         }
+
+        u8 tileNumber = spr->TileNumber;
+        if (_oam.SpriteHeight == 16)
+        {
+            tileNumber &= 0xFE;
+            bool upperTile = (y - spr->Y()) < 8;
+            if ((!spr->FlipY() && !upperTile) || (spr->FlipY() && upperTile))
+            {
+                tileNumber++;
+            }
+        }
+
+        Tile* tile = &_spriteTiles[tileNumber];
+
+        u8 tileY = (y - spr->Y()) % 8;
+        if (spr->FlipY()) tileY = 7 - tileY;
+        u8 tileX = (x - spr->X()) % 8;
+        if (spr->FlipX())
+        {
+            tileX = 7 - tileX;
+        }
+        u8 paletteIndex = tile->GetPixelData(tileX, tileY);
+
+        if (paletteIndex == 0)
+        {
+            continue;
+        }
+
+        sprColor = (_obp[spr->GBPalette()] >> (paletteIndex * 2)) & 0x03;
+        sprHasPriority = spr->AboveBG();
+
+        return true;
     }
 
-    Tile* tile = &_spriteTiles[tileNumber];
-
-    u8 tileY = (y - spr->Y()) % 8;
-    if (spr->FlipY()) tileY = 7 - tileY;
-    u8 tileX = (x - spr->X()) % 8;
-    if (spr->FlipX())
-    {
-        tileX = 7 - tileX;
-    }
-    u8 paletteIndex = tile->GetPixelData(tileX, tileY);
-
-    if (paletteIndex == 0)
-    {
-        return false;
-    }
-
-    sprColor = (_obp[spr->GBPalette()] >> (paletteIndex * 2)) & 0x03;
-    sprHasPriority = spr->AboveBG();
-
-    return true;
+    return false;
 }

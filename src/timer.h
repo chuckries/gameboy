@@ -28,8 +28,11 @@ private:
     std::shared_ptr<Cpu> _cpu;
 
     // I/O Registers
-    u8 _div;
+    u16 _div;
     u8 _tima;
     u8 _tma;
     u8 _tac;
+
+    bool _timerEnabled;
+    u8 _freqShift;
 };
