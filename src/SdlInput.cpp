@@ -32,6 +32,8 @@ void SdlInput::CheckInput()
                 HandleKey(sdlEvent.key.keysym.sym, false);
             }
             break;
+        case SDL_QUIT:
+            exit(0);
         }
     }
 }

@@ -37,15 +37,18 @@ void Timer::Step(u32 cycles)
         _div++;
 
         // detect counter increment
-        bool oldDivBit = (oldDiv & (1 << _freqShift)) != 0;
-        bool newDivBit = (_div & (1 << _freqShift)) != 0;
-        if (oldDivBit && !newDivBit)
+        if (_timerEnabled)
         {
-            _tima++;
-            if (_tima == 0)
+            bool oldDivBit = (oldDiv & (1 << _freqShift)) != 0;
+            bool newDivBit = (_div & (1 << _freqShift)) != 0;
+            if (oldDivBit && !newDivBit)
             {
-                _tima = _tma;
-                _cpu->RequestInterrupt(Cpu::InterruptType::TIMER);
+                _tima++;
+                if (_tima == 0)
+                {
+                    _tima = _tma;
+                    _cpu->RequestInterrupt(Cpu::InterruptType::TIMER);
+                }
             }
         }
     }
@@ -53,7 +56,7 @@ void Timer::Step(u32 cycles)
 
 u8 Timer::ReadDIV()
 {
-    return (u8)(_div & 0xFF);
+    return (u8)((_div >> 8) & 0xFF);
 }
 
 void Timer::WriteDIV()

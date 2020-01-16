@@ -168,8 +168,11 @@ u8 MemoryMap::Load(u16 addr)
     }
     else if (addr < 0xFF80)
     {
-        // Unusable
-        __debugbreak();
+        if (addr == 0xFF4D)
+            return 0xFF;
+        else
+            // Unusable
+            __debugbreak();
     }
     else if (addr < 0xFFFF)
     {

@@ -110,6 +110,10 @@ void Cpu::Init()
     _pOpSrc16 = nullptr;
     _pOpDst16 = nullptr;
     _pOpRW16 = nullptr;
+
+#ifdef TRACE
+    _traceLog = fopen("C:\\Users\\chuckr\\desktop\\gb.log", "w");
+#endif
 }
 
 void Cpu::UnInit()
@@ -208,17 +212,20 @@ u32 Cpu::Step()
 void Cpu::RequestInterrupt(Cpu::InterruptType interrupt)
 {
     _interrupt_if |= (u8)interrupt;
+    if (_isHalted)
+        _isHalted = ((_interrupt_if & _interrupt_ie) == 0);
 }
 
 bool Cpu::DoInterrupt()
 {
     if (_interrupt_ime_lag)
     {
-        if (((_interrupt_if & 0x1F) & (_interrupt_ie & 0x1F)) != 0)
+        u8 interruptJoin = _interrupt_ie & _interrupt_if & 0x1F;
+        if (interruptJoin != 0)
         {
             // find the first bit set in both _interrupt_ie and _interrupt_if
             u8 i = 0;
-            while (((_interrupt_if & (1 << i)) == 0) || ((_interrupt_ie & (1 << i)) == 0))
+            while ((interruptJoin & (1 << i)) == 0)
             {
                 i++;
             }
@@ -1159,21 +1166,25 @@ void Cpu::EI()
 void Cpu::RLCA()
 {
     _regs.AF.A = rlc_help(_regs.AF.A);
+    ResetZ();
 }
 
 void Cpu::RLA()
 {
     _regs.AF.A = rl_help(_regs.AF.A);
+    ResetZ();
 }
 
 void Cpu::RRCA()
 {
     _regs.AF.A = rrc_help(_regs.AF.A);
+    ResetZ();
 }
 
 void Cpu::RRA()
 {
     _regs.AF.A = rr_help(_regs.AF.A);
+    ResetZ();
 }
 
 void Cpu::RLC()
@@ -1415,8 +1426,8 @@ void Cpu::Trace()
     Disassembler::Instruction instr;
     _disassembler->Disassemble(*_PC, instr);
 
-    printf(
-        //_traceLog,
+    fprintf(
+        _traceLog,
         "%04X %-14s %-18s A:%02X B:%02X C:%02X D:%02X E:%02X F:%02X H:%02X L:%02X AF:%04X BC:%04X DE:%04X HL:%04X SP:%04X\n",
         *_PC,
         instr.GetFormattedCodeBytes().c_str(),

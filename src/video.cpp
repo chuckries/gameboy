@@ -242,25 +242,6 @@ bool Video::Step(u32 cycles, u8 gbScreen[])
         _scanlineCycles += cycles;
 
         u8 oldStatMode = _statMode;
-        if (_ly < VBLANK_SCANLINE)
-        {
-            if (_scanlineCycles < 80)
-            {
-                _statMode = 2;
-            }
-            else if (_scanlineCycles < 252)
-            {
-                _statMode = 3;
-            }
-            else
-            {
-                _statMode = 0;
-            }
-        }
-        else
-        {
-            _statMode = 1;
-        }
 
         if (_scanlineCycles >= CYCLES_PER_SCANLINE)
         {
@@ -287,6 +268,26 @@ bool Video::Step(u32 cycles, u8 gbScreen[])
             }
 
             _scanlineCycles -= CYCLES_PER_SCANLINE;
+        }
+
+        if (_ly < VBLANK_SCANLINE)
+        {
+            if (_scanlineCycles < 80)
+            {
+                _statMode = 2;
+            }
+            else if (_scanlineCycles < 252)
+            {
+                _statMode = 3;
+            }
+            else
+            {
+                _statMode = 0;
+            }
+        }
+        else
+        {
+            _statMode = 1;
         }
 
         if (_statMode != oldStatMode)

@@ -37,6 +37,9 @@ SdlGfx::~SdlGfx()
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
 }
 
+u8 palette[4] = { 0xFF, 0xD3, 0xA9, 0x00 };
+u8 screen[160 * 144 * 4];
+
 void SdlGfx::Blit(u8 gbScreen[])
 {
     std::chrono::time_point<std::chrono::steady_clock> now;
@@ -47,9 +50,6 @@ void SdlGfx::Blit(u8 gbScreen[])
         duration = std::chrono::duration_cast<std::chrono::nanoseconds>(now - _lastDrawTime).count();
     } while (duration < 16666667); // 60 fps
     _lastDrawTime = now;
-
-    u8 palette[4] = { 0xFF, 0xD3, 0xA9, 0x00 };
-    u8 screen[160 * 144 * 4];
 
     for (int i = 0; i < 160 * 144; i++)
     {
