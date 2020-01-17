@@ -6,6 +6,9 @@
 Timer::Timer(const Gameboy& gameboy)
     : _gameboy(gameboy)
     , _cpu(nullptr)
+    , _cycles(0)
+    , _div(0xABCC)
+    , _intPending(false)
 {
 }
 
@@ -18,7 +21,6 @@ void Timer::Init()
 {
     _cpu = _gameboy._cpu;
 
-    WriteDIV();
     WriteTIMA(0x00);
     WriteTMA(0x00);
     WriteTAC(0x00);
@@ -29,25 +31,36 @@ void Timer::UnInit()
     _cpu = nullptr;
 }
 
-void Timer::Step(u32 cycles)
+void Timer::Step()
 {
+    int cycles = _cpu->GetCycles() - _cycles;
+    _cycles = _cpu->GetCycles();
+
     for (u32 i = 0; i < cycles; i++)
     {
-        u16 oldDiv = _div;
-        _div++;
-
-        // detect counter increment
-        if (_timerEnabled)
+        if (_intPending)
         {
-            bool oldDivBit = (oldDiv & (1 << _freqShift)) != 0;
-            bool newDivBit = (_div & (1 << _freqShift)) != 0;
-            if (oldDivBit && !newDivBit)
+            _tima = _tma;
+            _cpu->RequestInterrupt(Cpu::InterruptType::TIMER);
+            _intPending = false;
+        }
+        else
+        {
+            u16 oldDiv = _div;
+            _div++;
+
+            // detect counter increment
+            if (_timerEnabled)
             {
-                _tima++;
-                if (_tima == 0)
+                bool oldDivBit = (oldDiv & (1 << _freqShift)) != 0;
+                bool newDivBit = (_div & (1 << _freqShift)) != 0;
+                if (oldDivBit && !newDivBit)
                 {
-                    _tima = _tma;
-                    _cpu->RequestInterrupt(Cpu::InterruptType::TIMER);
+                    _tima++;
+                    if (_tima == 0)
+                    {
+                        _intPending = true;
+                    }
                 }
             }
         }
@@ -56,41 +69,49 @@ void Timer::Step(u32 cycles)
 
 u8 Timer::ReadDIV()
 {
+    Step();
     return (u8)((_div >> 8) & 0xFF);
 }
 
 void Timer::WriteDIV()
 {
+    Step();
     _div = 0;
 }
 
 u8 Timer::ReadTIMA()
 {
+    Step();
     return _tima;
 }
 
 void Timer::WriteTIMA(u8 val)
 {
+    Step();
     _tima = val;
 }
 
 u8 Timer::ReadTMA()
 {
+    Step();
     return _tma;
 }
 
 void Timer::WriteTMA(u8 val)
 {
+    Step();
     _tma = val;
 }
 
 u8 Timer::ReadTAC()
 {
+    Step();
     return _tac;
 }
 
 void Timer::WriteTAC(u8 val)
 {
+    Step();
     _tac = val;
     _timerEnabled = (_tac & (1 << 2)) != 0l;
     switch (_tac & 0x3)

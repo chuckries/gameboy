@@ -23,8 +23,14 @@ public:
     void Init();
     void UnInit();
 
-    u32 Step();
+    void BeforeFrame() {}
+    void AfterFrame() {
+        _cycles -= 70224;
+    }
+    void Step();
     void RequestInterrupt(InterruptType interrupt);
+
+    u32 GetCycles() { return _cycles; }
 
 private:
     u8 Read8(u16 addr);
@@ -33,8 +39,8 @@ private:
     void Write8(u16 addr, u8 val);
     void Write16(u16 addr, u16 val);
 
-    u8 Read8BumpPC();
-    u16 Read16BumpPC();
+    u8 ReadPC8();
+    u16 ReadPC16();
 
     bool DoInterrupt();
     void DMA(u8 val);
@@ -160,7 +166,7 @@ private:
 
         Immediate8& FromPC()
         {
-            Immediate = _cpu.Read8BumpPC();
+            Immediate = _cpu.ReadPC8();
             return *this;
         }
 
@@ -186,7 +192,7 @@ private:
 
         Immediate16& FromPC()
         {
-            Immedate = _cpu.Read16BumpPC();
+            Immedate = _cpu.ReadPC16();
             return *this;
         }
 
@@ -212,7 +218,7 @@ private:
 
         IndirectImmediate& FromPC()
         {
-            Immediate = _cpu.Read16BumpPC();
+            Immediate = _cpu.ReadPC16();
             return *this;
         }
 
@@ -224,7 +230,7 @@ private:
 
         IndirectImmediate& ForLDH()
         {
-            Immediate = 0xFF00 | (u16)_cpu.Read8BumpPC();
+            Immediate = 0xFF00 | (u16)_cpu.ReadPC8();
             return *this;
         }
 

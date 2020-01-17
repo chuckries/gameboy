@@ -104,7 +104,7 @@ public:
     u8 WY;
     u8 WX;
 
-    bool Step(u32 cycles, u8 gbScreen[]);
+    bool Step(u8 gbScreen[]);
 
 private:
     void DoStatModeInterrupt();
@@ -147,4 +147,6 @@ private:
     bool _backgroundEnabled;
     bool _spritesEnabled;
     bool _windowEnabled;
+
+    int _cycles;
 };

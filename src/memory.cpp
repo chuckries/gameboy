@@ -114,6 +114,8 @@ u8 MemoryMap::Load(u16 addr)
         case 0xFF24:
         case 0xFF25:
         case 0xFF26:
+            // NR 52, disable sound
+            return 0x00;
         case 0xFF27:
         case 0xFF28:
         case 0xFF29:

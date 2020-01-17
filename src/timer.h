@@ -12,7 +12,7 @@ public:
     void Init();
     void UnInit();
 
-    void Step(u32 cycles);
+    void Step();
 
     u8 ReadDIV();
     void WriteDIV();
@@ -22,6 +22,8 @@ public:
     void WriteTMA(u8 val);
     u8 ReadTAC();
     void WriteTAC(u8 val);
+
+    void AfterFrame() { _cycles -= 70224; }
 
 private:
     const Gameboy& _gameboy;
@@ -35,4 +37,8 @@ private:
 
     bool _timerEnabled;
     u8 _freqShift;
+
+    int _cycles;
+    
+    bool _intPending;
 };

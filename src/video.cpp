@@ -89,6 +89,7 @@ Video::Video(const Gameboy& gameboy)
     : _gameboy(gameboy)
     , _cpu(nullptr)
     , _vram(0)
+    , _cycles(0)
 {
 }
 
@@ -233,8 +234,17 @@ u8 Video::LY()
     return _ly;
 }
 
-bool Video::Step(u32 cycles, u8 gbScreen[])
+bool Video::Step(u8 gbScreen[])
 {
+    int cycles = _cpu->GetCycles() - _cycles;
+    _cycles = _cpu->GetCycles();
+
+    if (cycles == 0)
+    {
+        __debugbreak();
+        return false;
+    }
+
     bool vblank = false;
 
     if (_screenEnabled)
@@ -256,6 +266,7 @@ bool Video::Step(u32 cycles, u8 gbScreen[])
                 if ((_stat & (1 << 5)) != 0) _cpu->RequestInterrupt(Cpu::InterruptType::STAT);
                 vblank = true;
                 _statMode = 1;
+                _cycles -= 70224;
             }
             else if (_ly == SCANLINES_PER_FRAME)
             {

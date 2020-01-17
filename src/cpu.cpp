@@ -124,18 +124,21 @@ void Cpu::UnInit()
 
 u8 Cpu::Read8(u16 addr)
 {
+    u8 data = 0;
     if (addr == 0xFF0F)
     {
-        return _interrupt_if;
+        data = _interrupt_if;
     }
     else if (addr == 0xFFFF)
     {
-        return _interrupt_ie;
+        data = _interrupt_ie;
     }
     else
     {
-        return _mem->Load(addr);
+        data = _mem->Load(addr);
     }
+    _cycles += 4;
+    return data;
 }
 
 u16 Cpu::Read16(u16 addr)
@@ -146,16 +149,16 @@ u16 Cpu::Read16(u16 addr)
     return *word;
 }
 
-u8 Cpu::Read8BumpPC()
+u8 Cpu::ReadPC8()
 {
     return Read8(_PC++);
 }
 
-u16 Cpu::Read16BumpPC()
+u16 Cpu::ReadPC16()
 {
     Word word;
-    word._0 = Read8BumpPC();
-    word._1 = Read8BumpPC();
+    word._0 = ReadPC8();
+    word._1 = ReadPC8();
     return *word;
 }
 
@@ -177,6 +180,7 @@ void Cpu::Write8(u16 addr, u8 val)
     {
         _mem->Store(addr, val);
     }
+    _cycles += 4;
 }
 
 void Cpu::Write16(u16 addr, u16 val)
@@ -186,10 +190,8 @@ void Cpu::Write16(u16 addr, u16 val)
     Write8(addr + 1, word._1);
 }
 
-u32 Cpu::Step()
+void Cpu::Step()
 {
-    _cycles = 0;
-
     if (!DoInterrupt())
     {
         if (!_isHalted)
@@ -198,15 +200,13 @@ u32 Cpu::Step()
         }
         else
         {
-            _cycles = 4;
+            _cycles += 4;
         }
     }
     else
     {
         _isHalted = false;
     }
-
-    return _cycles;
 }
 
 void Cpu::RequestInterrupt(Cpu::InterruptType interrupt)
@@ -229,6 +229,8 @@ bool Cpu::DoInterrupt()
             {
                 i++;
             }
+
+            _cycles += 8;
 
             push_help(*_PC);
             _PC._1 = 0;
@@ -254,6 +256,8 @@ bool Cpu::DoInterrupt()
                 break;
             }
 
+            _cycles += 4;
+
             DI();
             _interrupt_if &= ~(1 << i);
 
@@ -276,6 +280,8 @@ void Cpu::DMA(u8 val)
     Word dstAddr;
     dstAddr._1 = 0xFE;
 
+    _cycles += 4;
+
     for (u8 i = 0; i < 0xA0; i++)
     {
         srcAddr._0 = i;
@@ -288,12 +294,12 @@ void Cpu::Decode()
 {
     Trace();
 
-    u8 op = Read8BumpPC();
+    u8 op = ReadPC8();
 
     bool prefix = op == 0xCB;
     if (prefix)
     {
-        op = Read8BumpPC();
+        op = ReadPC8();
     }
 
     u8 y = (op >> 3) & 0b111;
@@ -302,7 +308,7 @@ void Cpu::Decode()
 
     if (!prefix)
     {
-        _cycles += CYCLES[op];
+        //_cycles += CYCLES[op];
         switch (op)
         {
         case 0x00:
@@ -310,11 +316,11 @@ void Cpu::Decode()
             break;
         case 0x08:
             // LD (nn),SP
-            Write16(Read16BumpPC(), *_SP);
+            Write16(ReadPC16(), *_SP);
             break;
         case 0x010:
             // STOP
-            Read8BumpPC(); // 0x00 byte
+            ReadPC8(); // 0x00 byte
             __debugbreak();
             break;
         case 0x18:
@@ -328,7 +334,7 @@ void Cpu::Decode()
             {
                 // JR cc[y-4],d
                 bool cond = (*this.*_decode_cc[y - 4])();
-                if (cond) _cycles += 4;
+                //if (cond) _cycles += 4;
                 JR(cond);
             }
             break;
@@ -638,7 +644,8 @@ void Cpu::Decode()
             // RET cc[y]
             {
                 bool cond = (*this.*_decode_cc[y])();
-                if (cond) _cycles += 12;
+                //if (cond) _cycles += 12;
+                _cycles += 4;
                 RET(cond);
             }
             break;
@@ -651,6 +658,7 @@ void Cpu::Decode()
         case 0xE8:
             // ADD SP,n
             _pOpSrc8 = &_imm8.FromPC();
+            _cycles += 8;
             ADDSP();
             break;
         case 0xF0:
@@ -662,6 +670,7 @@ void Cpu::Decode()
         case 0xF8:
             // LDHL
             _pOpSrc8 = &_imm8.FromPC();
+            _cycles += 4;
             LDHL();
             break;
         case 0xC1:
@@ -684,11 +693,13 @@ void Cpu::Decode()
             // JP HL
             _pOpSrc16 = &_regHL;
             JP(true);
+            _cycles -= 4;
             break;
         case 0xF9:
             // LD SP,HL
             _pOpSrc16 = &_regHL;
             _pOpDst16 = &_regSP;
+            _cycles += 4;
             LD16();
             break;
         case 0xC2:
@@ -699,7 +710,7 @@ void Cpu::Decode()
             {
                 _pOpSrc16 = &_imm16.FromPC();
                 bool cond = (*this.*_decode_cc[y])();
-                if (cond) _cycles += 4;
+                //if (cond) _cycles += 4;
                 JP(cond);
             }
             break;
@@ -748,7 +759,7 @@ void Cpu::Decode()
             {
                 _pOpSrc16 = &_imm16.FromPC();
                 bool cond = (*this.*_decode_cc[y])();
-                if (cond) _cycles += 12;
+                //if (cond) _cycles += 12;
                 CALL(cond);
             }
             break;
@@ -795,7 +806,7 @@ void Cpu::Decode()
     }
     else
     {
-        _cycles += CB_CYCLES[op & 0x7];
+        //_cycles += CB_CYCLES[op & 0x7];
         switch (op & 0xC0)
         {
         case 0x00:
@@ -941,6 +952,7 @@ void Cpu::LDHL()
 
 void Cpu::PUSH()
 {
+    _cycles += 4;
     push_help(_pOpSrc16->Read());
 }
 
@@ -970,6 +982,7 @@ void Cpu::ADD8()
 
 void Cpu::ADDHL()
 {
+    _cycles += 4;
     _regs.HL = add16_help(*_regs.HL, _pOpSrc16->Read());
 }
 
@@ -1067,6 +1080,7 @@ void Cpu::INC8()
 
 void Cpu::INC16()
 {
+    _cycles += 4;
     _pOpRW16->Write(_pOpRW16->Read() + 1);
 }
 
@@ -1085,6 +1099,7 @@ void Cpu::DEC8()
 
 void Cpu::DEC16()
 {
+    _cycles += 4;
     _pOpRW16->Write(_pOpRW16->Read() - 1);
 }
 
@@ -1253,17 +1268,19 @@ void Cpu::JP(bool condition)
     if (condition)
     {
         _PC = newPC;
+        _cycles += 4;
     }
 }
 
 void Cpu::JR(bool condition)
 {
-    i8 disp = (i8)Read8BumpPC();
+    i8 disp = (i8)ReadPC8();
     if (condition)
     {
         i16 oldPC = (i16)*_PC;
         i16 newPC = oldPC + (i16)(disp);
         _PC = (u16)newPC;
+        _cycles += 4;
     }
 }
 
@@ -1272,6 +1289,7 @@ void Cpu::CALL(bool condition)
     u16 addr = _pOpSrc16->Read();
     if (condition)
     {
+        _cycles += 4;
         push_help(*_PC);
         _PC = addr;
     }
@@ -1279,6 +1297,7 @@ void Cpu::CALL(bool condition)
 
 void Cpu::RST(u8 val)
 {
+    _cycles += 4;
     push_help(*_PC);
     _PC._0 = val;
     _PC._1 = 0;
@@ -1289,6 +1308,7 @@ void Cpu::RET(bool cond)
     if (cond)
     {
         _PC = pop_help();
+        _cycles += 4;
     }
 }
 
