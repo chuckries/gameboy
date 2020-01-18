@@ -90,6 +90,7 @@ Video::Video(const Gameboy& gameboy)
     , _cpu(nullptr)
     , _vram(0)
     , _cycles(0)
+    , _vblankThisStep(false)
 {
 }
 
@@ -130,35 +131,41 @@ void Video::UnInit()
 
 u8 Video::LoadVRam(u16 addr)
 {
+    Step();
     addr &= VRAM_MASK;
     return _vram[addr];
 }
 
 void Video::StoreVRam(u16 addr, u8 val)
 {
+    Step();
     addr &= VRAM_MASK;
     _vram[addr] = val;
 }
 
 u8 Video::LoadOAM(u16 addr)
 {
+    Step();
     addr &= 0xFF;
     return _oam[addr];
 }
 
 void Video::StoreOAM(u16 addr, u8 val)
 {
+    Step();
     addr &= 0xFF;
     _oam[addr] = val;
 }
 
 u8 Video::ReadLCDC()
 {
+    Step();
     return _lcdc;
 }
 
 void Video::WriteLCDC(u8 val)
 {
+    Step();
     _lcdc = val;
 
     _screenEnabled = (val & (1 << 7)) != 0;
@@ -187,65 +194,71 @@ void Video::WriteLCDC(u8 val)
 
 u8 Video::ReadSTAT()
 {
+    Step();
     _stat &= 0xF8;
     _stat |= (_statMode & 0x3);
-    if (_ly == LYC) _stat |= (1 << 3);
+    if (_ly == LYC) _stat |= (1 << 2);
 
     return _stat;
 }
 
 void Video::WriteSTAT(u8 val)
 {
+    Step();
     _stat = (val & 0b01111000) | 0x80;
 }
 
 u8 Video::ReadBGP()
 {
+    Step();
     return _bgp;
 }
 
 void Video::WriteBGP(u8 val)
 {
+    Step();
     _bgp = val;
 }
 
 u8 Video::ReadOBP0()
 {
+    Step();
     return _obp[0];
 }
 
 void Video::WriteOBP0(u8 val)
 {
+    Step();
     _obp[0] = val;
 }
 
 u8 Video::ReadOBP1()
 {
+    Step();
     return _obp[1];
 }
 
 void Video::WriteOBP1(u8 val)
 {
+    Step();
     _obp[1] = val;
 }
 
 u8 Video::LY()
 {
+    Step();
     return _ly;
 }
 
-bool Video::Step(u8 gbScreen[])
+bool Video::Step()
 {
     int cycles = _cpu->GetCycles() - _cycles;
     _cycles = _cpu->GetCycles();
 
     if (cycles == 0)
     {
-        __debugbreak();
-        return false;
+        return _vblankThisStep;
     }
-
-    bool vblank = false;
 
     if (_screenEnabled)
     {
@@ -257,16 +270,15 @@ bool Video::Step(u8 gbScreen[])
         {
             if (_ly < VBLANK_SCANLINE)
             {
-                DoScanline(gbScreen);
+                DoScanline();
             }
             _ly++;
             if (_ly == VBLANK_SCANLINE)
             {
                 _cpu->RequestInterrupt(Cpu::InterruptType::V_BLANK);
-                if ((_stat & (1 << 5)) != 0) _cpu->RequestInterrupt(Cpu::InterruptType::STAT);
-                vblank = true;
+                //if ((_stat & (1 << 5)) != 0) _cpu->RequestInterrupt(Cpu::InterruptType::STAT);
+                _vblankThisStep = true;
                 _statMode = 1;
-                _cycles -= 70224;
             }
             else if (_ly == SCANLINES_PER_FRAME)
             {
@@ -275,7 +287,7 @@ bool Video::Step(u8 gbScreen[])
 
             if (_ly == LYC && ((_stat & (1 << 6)) != 0))
             {
-                if ((_stat & (1 << 5)) != 0) _cpu->RequestInterrupt(Cpu::InterruptType::STAT);
+                if ((_stat & (1 << 6)) != 0) _cpu->RequestInterrupt(Cpu::InterruptType::STAT);
             }
 
             _scanlineCycles -= CYCLES_PER_SCANLINE;
@@ -301,13 +313,16 @@ bool Video::Step(u8 gbScreen[])
             _statMode = 1;
         }
 
+        if (oldStatMode == 2 && _statMode == 3)
+            _xLatch = SCX;
+
         if (_statMode != oldStatMode)
         {
             DoStatModeInterrupt();
         }
     }
 
-    return vblank;
+    return _vblankThisStep;
 }
 
 void Video::DoStatModeInterrupt()
@@ -321,7 +336,7 @@ void Video::DoStatModeInterrupt()
     }
 }
 
-void Video::DoScanline(u8 gbScreen[])
+void Video::DoScanline()
 {
     _oam.ProcessSpritesForLine(_ly);
 
@@ -355,13 +370,13 @@ void Video::DoScanline(u8 gbScreen[])
             }
         }
 
-        gbScreen[screenOffset + i] = color;
+        _screen[screenOffset + i] = color;
     }
 }
 
 u8 Video::GetBackgroundPixel(u32 x, u32 y)
 {
-    x += (u32)SCX;
+    x += (u32)SCX; // _xLatch;
     x %= 256;
     y += (u32)SCY;
     y %= 256;

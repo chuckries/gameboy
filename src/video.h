@@ -1,7 +1,8 @@
 #pragma once
 
+#include "cpu.h"
+
 class Gameboy;
-class Cpu;
 
 class Video
 {
@@ -104,14 +105,25 @@ public:
     u8 WY;
     u8 WX;
 
-    bool Step(u8 gbScreen[]);
+    bool Step();
+
+    void SetScreen(u8 screen[])
+    {
+        _screen = screen;
+    }
+
+    void BeforeFrame()
+    {
+        _vblankThisStep = false;
+        _cycles -= _cpu->GetCycles();
+    }
 
 private:
     void DoStatModeInterrupt();
 
     // Rendering
 private:
-    void DoScanline(u8 gbScreen[]);
+    void DoScanline();
     u8 GetBackgroundPixel(u32 x, u32 y);
     u8 GetWindowPixel(u8 x, u8 y);
     bool GetSpritePixel(u8 x, u8 y, u8& sprColor, bool& sprHasPriority);
@@ -123,6 +135,8 @@ private:
     std::vector<u8> _vram;
     Oam _oam;
     u32 _scanlineCycles;
+
+    bool _vblankThisStep;
 
     // I/O
 private:
@@ -149,4 +163,8 @@ private:
     bool _windowEnabled;
 
     int _cycles;
+
+    u8* _screen;
+
+    u8 _xLatch;
 };

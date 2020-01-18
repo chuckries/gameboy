@@ -23,10 +23,7 @@ public:
     void Init();
     void UnInit();
 
-    void BeforeFrame() {}
-    void AfterFrame() {
-        _cycles -= 70224;
-    }
+    void BeforeFrame() { _cycles = 0; }
     void Step();
     void RequestInterrupt(InterruptType interrupt);
 

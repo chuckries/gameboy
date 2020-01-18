@@ -26,6 +26,7 @@ public:
     MBC_IDENTIFIER MBCID;
     bool HasRam;
     bool HasSave;
+    int RamSize;
 
 public:
     u8 operator [](int i) const
@@ -51,11 +52,11 @@ private:
     const char* _filePath;
 };
 
-class MbcRomOnly
+class MbcBase
 {
 public:
-    MbcRomOnly(const Rom& rom);
-    virtual ~MbcRomOnly();
+    MbcBase(const Rom& rom);
+    virtual ~MbcBase();
 
     virtual u8 LoadRom(u16 addr);
     virtual void StoreRom(u16 addr, u8 val);
@@ -69,15 +70,16 @@ protected:
     u32 _ramOffset;
 
     bool _ramEnabled;
+    std::vector<u8> _ram;
 };
 
-class Mbc1 : public MbcRomOnly
+class Mbc1 : public MbcBase
 {
 public:
     Mbc1(const Rom& rom);
     virtual ~Mbc1();
 
-    virtual void StoreRom(u16 addr, u8 val);
+    virtual void StoreRom(u16 addr, u8 val) override;
 
 protected:
     virtual void CalculateOffsets();

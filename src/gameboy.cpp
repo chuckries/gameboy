@@ -42,20 +42,21 @@ static u8 scroll = 0;
 void Gameboy::DoFrame(u8 gbScreen[])
 {
     memset(gbScreen, 0, 160 * 144);
+    _video->SetScreen(gbScreen);
     scroll++;
     u32 cycles = 0;
     bool vblank = false;
+    _video->BeforeFrame();
+    _timer->BeforeFrame();
+    _cpu->BeforeFrame();
     do
     {
         _cpu->Step();
         //_video->SCX = 0x11;
         //_video->SCY = scroll;
         _timer->Step();
-        vblank = _video->Step(gbScreen);
+        vblank = _video->Step();
     } while (!vblank);
-
-    _cpu->AfterFrame();
-    _timer->AfterFrame();
 }
 
 void Gameboy::Button(u8 idx, bool pressed)

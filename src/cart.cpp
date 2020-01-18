@@ -23,6 +23,22 @@ bool Rom::Init()
             break;
         }
 
+        if (HasRam)
+        {
+            switch (_rom[0x149])
+            {
+            case 0x00: RamSize = 0x0000; HasRam = false;  break;
+            case 0x01: RamSize = 0x0800; break;
+            case 0x02: RamSize = 0x2000; break;
+            case 0x03: RamSize = 0x8000; break;
+            case 0x04: RamSize = 0x20000; break;
+            default:
+                __debugbreak();
+                RamSize = 0;
+                break;
+            }
+        }
+
         return true;
     }
 
@@ -52,47 +68,50 @@ bool StdRom::LoadFromFile()
     return true;
 }
 
-MbcRomOnly::MbcRomOnly(const Rom& rom)
+MbcBase::MbcBase(const Rom& rom)
     : _rom(rom)
     , _romOffset(0x4000)
     , _ramOffset(0x0000)
+    , _ram(rom.RamSize, 0xFF)
 {
 }
 
-MbcRomOnly::~MbcRomOnly()
+MbcBase::~MbcBase()
 {
 }
 
-u8 MbcRomOnly::LoadRom(u16 addr)
+u8 MbcBase::LoadRom(u16 addr)
 {
     return _rom[_romOffset + (addr & 0x3FFF)];
 }
 
-void MbcRomOnly::StoreRom(u16 addr, u8 val)
+void MbcBase::StoreRom(u16 addr, u8 val)
 {
     // nothing for Rom Only
 }
 
-u8 MbcRomOnly::LoadRam(u16 addr)
+u8 MbcBase::LoadRam(u16 addr)
 {
-    if (_rom.HasRam)
+    if (!_rom.HasRam)
     {
         __debugbreak();
-        return 0;
+        return 0xFF;
     }
-    return 0;
+    else
+        return _ram[_ramOffset + (addr - 0xA000)];
 }
 
-void MbcRomOnly::StoreRam(u16 addr, u8 val)
+void MbcBase::StoreRam(u16 addr, u8 val)
 {
-    if (_rom.HasRam)
-    {
-        __debugbreak();
-    }
+    if (!_rom.HasRam)
+    { }
+        //__debugbreak();
+    else
+        _ram[_ramOffset + (addr - 0xA000)] = val;
 }
 
 Mbc1::Mbc1(const Rom& rom)
-    : MbcRomOnly(rom)
+    : MbcBase(rom)
 {
 }
 
@@ -217,12 +236,16 @@ void Cart::StoreRom(u16 addr, u8 val)
 
 u8 Cart::LoadRam(u16 addr)
 {
-    switch (addr & 0x4000)
+    switch (_mbcId)
     {
-
+    case MBC_ROM_ONLY:
+        __debugbreak();
+        return 0xFF;
+        break;
+    case MBC_1:
+        return _mbc1->LoadRam(addr);
+        break;
     }
-
-    return 0;
 }
 
 void Cart::StoreRam(u16 addr, u8 val)

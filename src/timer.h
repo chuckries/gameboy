@@ -1,7 +1,8 @@
 #pragma once
 
+#include "cpu.h"
+
 class Gameboy;
-class Cpu;
 
 class Timer
 {
@@ -23,7 +24,7 @@ public:
     u8 ReadTAC();
     void WriteTAC(u8 val);
 
-    void AfterFrame() { _cycles -= 70224; }
+    void BeforeFrame() { _cycles -= _cpu->GetCycles(); }
 
 private:
     const Gameboy& _gameboy;
