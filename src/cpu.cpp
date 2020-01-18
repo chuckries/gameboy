@@ -89,8 +89,8 @@ void Cpu::Init()
 
     _cycles = 0;
 
-    _interrupt_ime = true;
-    _interrupt_ime_lag = true;
+    _interrupt_ime = false;
+    _interrupt_ime_lag = false;
 
     _interrupt_ie = 0;
     _interrupt_if = 0;

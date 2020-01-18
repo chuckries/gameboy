@@ -262,27 +262,29 @@ bool Video::Step()
 
     if (_screenEnabled)
     {
-        _scanlineCycles += cycles;
-
+        u32 oldScanlineCycles = _scanlineCycles;
         u8 oldStatMode = _statMode;
+
+        _scanlineCycles += cycles;
 
         if (_scanlineCycles >= CYCLES_PER_SCANLINE)
         {
-            if (_ly < VBLANK_SCANLINE)
-            {
-                DoScanline();
-            }
             _ly++;
+
+            if (_ly == SCANLINES_PER_FRAME)
+            {
+                _ly = 0;
+            }
+
             if (_ly == VBLANK_SCANLINE)
             {
                 _cpu->RequestInterrupt(Cpu::InterruptType::V_BLANK);
-                //if ((_stat & (1 << 5)) != 0) _cpu->RequestInterrupt(Cpu::InterruptType::STAT);
                 _vblankThisStep = true;
                 _statMode = 1;
             }
-            else if (_ly == SCANLINES_PER_FRAME)
+            else if (_ly < VBLANK_SCANLINE)
             {
-                _ly = 0;
+                _statMode = 2;
             }
 
             if (_ly == LYC && ((_stat & (1 << 6)) != 0))
@@ -291,30 +293,72 @@ bool Video::Step()
             }
 
             _scanlineCycles -= CYCLES_PER_SCANLINE;
-        }
-
-        if (_ly < VBLANK_SCANLINE)
-        {
-            if (_scanlineCycles < 80)
-            {
-                _statMode = 2;
-            }
-            else if (_scanlineCycles < 252)
-            {
-                _statMode = 3;
-            }
-            else
-            {
-                _statMode = 0;
-            }
-        }
-        else
-        {
             _statMode = 1;
         }
-
-        if (oldStatMode == 2 && _statMode == 3)
+        else if (oldScanlineCycles < 80 && _scanlineCycles >= 80)
+        {
             _xLatch = SCX;
+            _statMode = 3;
+        }
+        else if (oldScanlineCycles < 252 && _scanlineCycles >= 252)
+        {
+            if (_ly < VBLANK_SCANLINE)
+            {
+                DoScanline();
+            }
+            _statMode = 0;
+        }
+
+
+        //if (_scanlineCycles >= CYCLES_PER_SCANLINE)
+        //{
+        //    if (_ly < VBLANK_SCANLINE)
+        //    {
+        //        DoScanline();
+        //    }
+        //    _ly++;
+        //    if (_ly == VBLANK_SCANLINE)
+        //    {
+        //        _cpu->RequestInterrupt(Cpu::InterruptType::V_BLANK);
+        //        //if ((_stat & (1 << 5)) != 0) _cpu->RequestInterrupt(Cpu::InterruptType::STAT);
+        //        _vblankThisStep = true;
+        //        _statMode = 1;
+        //    }
+        //    else if (_ly == SCANLINES_PER_FRAME)
+        //    {
+        //        _ly = 0;
+        //    }
+
+        //    if (_ly == LYC && ((_stat & (1 << 6)) != 0))
+        //    {
+        //        if ((_stat & (1 << 6)) != 0) _cpu->RequestInterrupt(Cpu::InterruptType::STAT);
+        //    }
+
+        //    _scanlineCycles -= CYCLES_PER_SCANLINE;
+        //}
+
+        //if (_ly < VBLANK_SCANLINE)
+        //{
+        //    if (_scanlineCycles < 80)
+        //    {
+        //        _statMode = 2;
+        //    }
+        //    else if (_scanlineCycles < 252)
+        //    {
+        //        _statMode = 3;
+        //    }
+        //    else
+        //    {
+        //        _statMode = 0;
+        //    }
+        //}
+        //else
+        //{
+        //    _statMode = 1;
+        //}
+
+        //if (oldStatMode == 2 && _statMode == 3)
+        //    _xLatch = SCX;
 
         if (_statMode != oldStatMode)
         {
@@ -376,7 +420,7 @@ void Video::DoScanline()
 
 u8 Video::GetBackgroundPixel(u32 x, u32 y)
 {
-    x += (u32)SCX; // _xLatch;
+    x += _xLatch; // _xLatch;
     x %= 256;
     y += (u32)SCY;
     y %= 256;
@@ -411,10 +455,10 @@ bool Video::GetSpritePixel(u8 x, u8 y, u8& sprColor, bool& sprHasPriority)
     {
         Sprite* spr = _oam.SpritesOnLine[i];
 
-        if (!(x >= spr->X() && (x < spr->X() + 8)))
+        if (!(x >= spr->X() && (x < (spr->X() + 8))))
         {
             continue;
-        }
+        } 
 
         u8 tileNumber = spr->TileNumber;
         if (_oam.SpriteHeight == 16)
